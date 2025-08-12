@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NYT Video Feed</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            background-color: #f8f8f8;
+            color: #333;
+            line-height: 1.4;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .video-item {
+            background-color: white;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            display: flex;
+            gap: 16px;
+            padding: 16px;
+        }
+
+        /* Regular YouTube video embed */
+        .video-embed {
+            flex-shrink: 0;
+            width: 320px;
+            height: 180px;
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* YouTube Shorts embed - vertical format */
+        .video-embed.shorts {
+            width: 180px;
+            height: 320px;
+        }
+
+        .video-embed iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        .video-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+        }
+
+        .video-title {
+            font-size: 18px;
+            font-weight: 500;
+            color: #333;
+            margin-bottom: 8px;
+            line-height: 1.3;
+            text-decoration: none;
+        }
+
+        .video-title:hover {
+            color: #1a73e8;
+        }
+
+        .video-meta {
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+
+        .video-description {
+            font-size: 14px;
+            color: #555;
+            line-height: 1.4;
+            margin-top: 4px;
+        }
+
+        .channel-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 4px;
+        }
+
+        .channel-logo {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+        }
+
+        .channel-name {
+            font-size: 13px;
+            color: #666;
+        }
+
+        .shorts-badge {
+            background-color: #ff0000;
+            color: white;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-weight: bold;
+            margin-left: 8px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+            font-size: 16px;
+        }
+
+        .error {
+            background-color: #fff3cd;
+            color: #856404;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            border: 1px solid #ffeaa7;
+        }
+
+        .debug-info {
+            background-color: #e3f2fd;
+            color: #1565c0;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            border: 1px solid #90caf9;
+            font-family: monospace;
+            font-size: 12px;
+        }
+
+        .refresh-btn {
+            background-color: #f0f0f0;
+            color: #333;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+
+        .refresh-btn:hover {
+            background-color: #e0e0e0;
+        }
+
+        .carousel-container {
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        .carousel-wrapper {
+            overflow: hidden;
+            border-radius: 8px;
+        }
+
+        .carousel-content {
+            display: flex;
+            transition: transform 0.3s ease;
+        }
+
+        .carousel-page {
+            min-width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .pagination-controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        .pagination-btn {
+            background-color: #f0f0f0;
+            color: #333;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .pagination-btn:hover {
+            background-color: #e0e0e0;
+        }
+
+        .pagination-btn:disabled {
+            background-color: #f5f5f5;
+            color: #999;
+            cursor: not-allowed;
+        }
+
+        .pagination-info {
+            font-size: 14px;
+            color: #666;
+            margin: 0 8px;
+        }
+
+        .test-btn {
+            background-color: #34a853;
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 400;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .filter-tabs {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .filter-tab {
+            padding: 8px 16px;
+            background-color: #f0f0f0;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            color: #333;
+        }
+
+        .filter-tab.active {
+            background-color: #1a73e8;
+            color: white;
+        }
+
+        .filter-tab:hover {
+            background-color: #e0e0e0;
+        }
+
+        .filter-tab.active:hover {
+            background-color: #1557b0;
+        }
+
+        @media (max-width: 768px) {
+            .video-item {
+                flex-direction: column;
+                gap: 12px;
+            }
+            
+            .video-embed {
+                width: 100%;
+                height: 200px;
+            }
+
+            .video-embed.shorts {
+                width: 200px;
+                height: 356px;
+                margin: 0 auto;
+            }
+            
+            body {
+                padding: 12px;
+            }
+        }
+
+        .last-updated {
+            text-align: center;
+            font-size: 12px;
+            color: #999;
+            margin-top: 24px;
+        }
+
+        .video-type-indicator {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+
+        .detection-debug {
+            font-size: 10px;
+            color: #999;
+            margin-top: 4px;
+        }
+
+        .search-container {
+            margin-bottom: 24px;
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .search-box {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        #keyword-input {
+            flex: 1;
+            min-width: 250px;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        #keyword-input:focus {
+            outline: none;
+            border-color: #1a73e8;
+        }
+
+        .search-btn {
+            background-color: #1a73e8;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .search-btn:hover {
+            background-color: #1557b0;
+        }
+
+        .search-btn:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        .clear-btn {
+            background-color: #6c757d;
+            color: white;
+            border: none;
+            padding: 12px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .clear-btn:hover {
+            background-color: #5a6268;
+        }
+
+        .search-info {
+            margin-top: 12px;
+            padding: 8px 12px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            font-size: 13px;
+            color: #495057;
+            border-left: 3px solid #007bff;
+        }
+
+        .search-info.empty {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+
+
+
+        <div class="filter-tabs">
+            <button class="filter-tab active" onclick="filterVideos('all')">All Videos</button>
+            <button class="filter-tab" onclick="filterVideos('regular')">YouTube Videos</button>
+            <button class="filter-tab" onclick="filterVideos('shorts')">YouTube Shorts</button>
+        </div>
+
+        <button class="refresh-btn" onclick="refreshVideos()">Refresh</button>
+
+        <div class="carousel-container">
+            <div class="carousel-wrapper">
+                <div class="carousel-content" id="carousel-content">
+                    <!-- Video pages will be inserted here -->
+                </div>
+            </div>
+            <div class="pagination-controls" id="pagination-controls">
+                <!-- Pagination will be inserted here -->
+            </div>
+        </div>
+
+        <div class="last-updated" id="last-updated"></div>
+    </div>
+
+    <script>
+        let allVideos = [];
+        let currentFilter = 'all';
+        let currentPage = 0;
+        let videosPerPage = 3;
+        let totalPages = 0;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            fetchCNAVideos();
+            // Auto-refresh every 15 minutes
+            setInterval(fetchCNAVideos, 900000);
+        });
+
+        async function fetchCNAVideos() {
+            showLoading();
+
+            try {
+                // CNA YouTube Channel ID
+                const channelId = 'UC83jt4dlz1Gjl58fzQrrKZg';
+                
+                // Fetch all videos from RSS
+                const videos = await fetchAllVideosFromRSS(channelId);
+                
+                if (!videos || videos.length === 0) {
+                    throw new Error('No videos found in RSS feed');
+                }
+                
+                // Process videos and detect Short vs Regular
+                allVideos = videos.map(video => {
+                    const isShort = detectYouTubeShort(video.url, video.title + ' ' + video.description);
+                    video.isShort = isShort;
+                    video.detectionMethod = isShort ? 'URL/keyword analysis (Short)' : 'default (Regular)';
+                    
+                    // Truncate description
+                    video.description = video.description.substring(0, 200) + (video.description.length > 200 ? '...' : '');
+                    
+                    return video;
+                });
+                
+                currentPage = 0; // Reset to first page
+                displayCarousel();
+                
+            } catch (error) {
+                console.error('Error fetching CNA videos:', error);
+                
+                // Fallback to mock data
+                allVideos = generateMockCNAVideoData();
+                currentPage = 0;
+                displayCarousel();
+            }
+            
+            updateLastUpdated();
+        }
+        
+        function showLoading() {
+            const carouselContent = document.getElementById('carousel-content');
+            const paginationControls = document.getElementById('pagination-controls');
+            
+            carouselContent.innerHTML = '<div class="loading" style="padding: 40px; text-align: center; color: #666; font-size: 16px;">Loading latest CNA videos...</div>';
+            paginationControls.innerHTML = '';
+        }
+        
+        function displayCarousel() {
+            // Filter videos based on current filter
+            let filteredVideos = allVideos;
+            if (currentFilter === 'regular') {
+                filteredVideos = allVideos.filter(video => !video.isShort);
+            } else if (currentFilter === 'shorts') {
+                filteredVideos = allVideos.filter(video => video.isShort);
+            }
+            
+            if (filteredVideos.length === 0) {
+                const carouselContent = document.getElementById('carousel-content');
+                carouselContent.innerHTML = '<div class="loading" style="padding: 40px; text-align: center; color: #666; font-size: 16px;">No videos found.</div>';
+                document.getElementById('pagination-controls').innerHTML = '';
+                return;
+            }
+            
+            // Calculate total pages
+            totalPages = Math.ceil(filteredVideos.length / videosPerPage);
+            
+            // Ensure currentPage is within bounds
+            if (currentPage >= totalPages) {
+                currentPage = totalPages - 1;
+            }
+            if (currentPage < 0) {
+                currentPage = 0;
+            }
+            
+            // Create carousel pages
+            const carouselContent = document.getElementById('carousel-content');
+            let carouselHTML = '';
+            
+            for (let page = 0; page < totalPages; page++) {
+                const startIndex = page * videosPerPage;
+                const endIndex = Math.min(startIndex + videosPerPage, filteredVideos.length);
+                const pageVideos = filteredVideos.slice(startIndex, endIndex);
+                
+                carouselHTML += '<div class="carousel-page">';
+                
+                pageVideos.forEach(video => {
+                    const publishedTime = formatTime(video.published);
+                    const formattedViews = formatViews(video.views);
+                    
+                    // Use different embed URLs for Shorts vs regular videos
+                    const embedUrl = video.isShort 
+                        ? `https://www.youtube.com/embed/${video.videoId}?rel=0&modestbranding=1`
+                        : `https://www.youtube.com/embed/${video.videoId}`;
+                    
+                    const videoTypeClass = video.isShort ? 'shorts' : '';
+                    const videoTypeIndicator = video.isShort ? 'SHORTS' : 'VIDEO';
+                    
+                    carouselHTML += `
+                        <div class="video-item">
+                            <div class="video-embed ${videoTypeClass}">
+                                <iframe 
+                                    src="${embedUrl}" 
+                                    title="${video.title}"
+                                    frameborder="0" 
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                                    allowfullscreen>
+                                </iframe>
+                                <div class="video-type-indicator">${videoTypeIndicator}</div>
+                            </div>
+                            <div class="video-content">
+                                <a href="${video.url}" target="_blank" class="video-title">
+                                    ${video.title}
+                                    ${video.isShort ? '<span class="shorts-badge">SHORTS</span>' : ''}
+                                </a>
+                                <div class="channel-info">
+                                    <img src="https://yt3.ggpht.com/wgPJRSVhScqmdNxbqBKU-OMczSo7xhKJJKhWaWF3qRcJBp-rckpMRfS-jEYF8YZ7Dq_rZw=s88-c-k-c0x00ffffff-no-rj" alt="CNA" class="channel-logo">
+                                    <span class="channel-name">${video.author}</span>
+                                </div>
+                                <div class="video-meta">
+                                    ${formattedViews}次观看 • ${publishedTime}
+                                </div>
+                                <div class="video-description">
+                                    ${video.description}
+                                </div>
+                                <div class="detection-debug">Detection: ${video.detectionMethod}</div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                carouselHTML += '</div>';
+            }
+            
+            carouselContent.innerHTML = carouselHTML;
+            
+            // Update carousel position
+            updateCarouselPosition();
+            
+            // Create pagination controls
+            createPaginationControls(filteredVideos.length);
+        }
+        
+        function updateCarouselPosition() {
+            const carouselContent = document.getElementById('carousel-content');
+            const translateX = -currentPage * 100;
+            carouselContent.style.transform = `translateX(${translateX}%)`;
+        }
+        
+        function createPaginationControls(totalVideos) {
+            const paginationControls = document.getElementById('pagination-controls');
+            
+            if (totalPages <= 1) {
+                paginationControls.innerHTML = '';
+                return;
+            }
+            
+            let paginationHTML = '';
+            
+            // Previous button
+            paginationHTML += `<button class="pagination-btn" onclick="goToPage(${currentPage - 1})" ${currentPage === 0 ? 'disabled' : ''}>Previous</button>`;
+            
+            // Page info
+            paginationHTML += `<span class="pagination-info">Page ${currentPage + 1} of ${totalPages}</span>`;
+            
+            // Next button
+            paginationHTML += `<button class="pagination-btn" onclick="goToPage(${currentPage + 1})" ${currentPage === totalPages - 1 ? 'disabled' : ''}>Next</button>`;
+            
+            paginationControls.innerHTML = paginationHTML;
+        }
+        
+        function goToPage(page) {
+            if (page >= 0 && page < totalPages) {
+                currentPage = page;
+                updateCarouselPosition();
+                createPaginationControls(allVideos.length);
+            }
+        }
+        
+        async function fetchAllVideosFromRSS(channelId) {
+            // Try multiple methods to fetch the RSS
+            const methods = [
+                {
+                    name: 'AllOrigins',
+                    url: `https://api.allorigins.win/get?url=${encodeURIComponent(`https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`)}`
+                },
+                {
+                    name: 'RSS2JSON',
+                    url: `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(`https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`)}`
+                }
+            ];
+
+            for (let method of methods) {
+                try {
+                    const response = await fetch(method.url);
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+
+                    let xmlContent;
+                    
+                    if (method.name === 'AllOrigins') {
+                        const data = await response.json();
+                        xmlContent = data.contents;
+                    } else if (method.name === 'RSS2JSON') {
+                        const data = await response.json();
+                        if (data.status === 'ok' && data.items) {
+                            // Convert RSS2JSON format to our format
+                            return data.items.map(item => {
+                                const videoId = extractVideoId(item.link);
+                                
+                                return {
+                                    videoId,
+                                    title: item.title,
+                                    description: item.description || '',
+                                    published: item.pubDate,
+                                    author: item.author || 'CNA',
+                                    views: Math.floor(Math.random() * 1000000) + 10000,
+                                    url: item.link
+                                };
+                            });
+                        }
+                    } else {
+                        xmlContent = await response.text();
+                    }
+
+                    if (xmlContent && method.name !== 'RSS2JSON') {
+                        // Parse XML for other methods
+                        const parser = new DOMParser();
+                        const xmlDoc = parser.parseFromString(xmlContent, 'text/xml');
+                        
+                        const entries = xmlDoc.querySelectorAll('entry');
+                        
+                        if (entries.length === 0) {
+                            throw new Error('No entries found in RSS feed');
+                        }
+
+                        return Array.from(entries).map(entry => {
+                            const videoId = entry.querySelector('yt\\:videoId, videoId')?.textContent;
+                            const title = entry.querySelector('title')?.textContent;
+                            const description = entry.querySelector('media\\:description, description')?.textContent || '';
+                            const published = entry.querySelector('published')?.textContent;
+                            const author = entry.querySelector('author name')?.textContent || 'CNA';
+                            const link = entry.querySelector('link')?.getAttribute('href') || `https://www.youtube.com/watch?v=${videoId}`;
+                            
+                            return {
+                                videoId,
+                                title,
+                                description,
+                                published,
+                                author,
+                                views: Math.floor(Math.random() * 1000000) + 10000,
+                                url: link
+                            };
+                        });
+                    }
+                    
+                } catch (error) {
+                    console.error(`${method.name} failed:`, error);
+                    continue;
+                }
+            }
+            
+            throw new Error('All RSS fetch methods failed');
+        }
+        
+        function generateMockCNAVideoData() {
+            return [
+                {
+                    videoId: 'cna001',
+                    title: 'Singapore Economy Update: Growth Projections for 2025',
+                    description: 'Latest analysis on Singapore\'s economic outlook and key growth sectors driving the nation\'s prosperity in the coming year.',
+                    published: new Date(Date.now() - 1 * 3600000).toISOString(),
+                    author: 'CNA',
+                    isShort: false,
+                    views: 125000,
+                    url: 'https://www.youtube.com/watch?v=cna001',
+                    detectionMethod: 'mock data (Regular)'
+                },
+                {
+                    videoId: 'cna002',
+                    title: 'Asia News Roundup #Shorts',
+                    description: 'Quick update on the latest developments across Asia. #shorts #asia #news',
+                    published: new Date(Date.now() - 2 * 3600000).toISOString(),
+                    author: 'CNA',
+                    isShort: true,
+                    views: 85000,
+                    url: 'https://www.youtube.com/shorts/cna002',
+                    detectionMethod: 'mock data (Short)'
+                },
+                {
+                    videoId: 'cna003',
+                    title: 'ASEAN Summit 2025: Key Outcomes and Regional Implications',
+                    description: 'Comprehensive coverage of the ASEAN Summit outcomes and what they mean for Southeast Asian cooperation and development.',
+                    published: new Date(Date.now() - 4 * 3600000).toISOString(),
+                    author: 'CNA',
+                    isShort: false,
+                    views: 98000,
+                    url: 'https://www.youtube.com/watch?v=cna003',
+                    detectionMethod: 'mock data (Regular)'
+                },
+                {
+                    videoId: 'cna004',
+                    title: 'Tech Innovation in 60 Seconds',
+                    description: 'Latest tech breakthroughs from Asian innovation hubs explained quickly.',
+                    published: new Date(Date.now() - 6 * 3600000).toISOString(),
+                    author: 'CNA',
+                    isShort: true,
+                    views: 67000,
+                    url: 'https://www.youtube.com/shorts/cna004',
+                    detectionMethod: 'mock data (Short)'
+                },
+                {
+                    videoId: 'cna005',
+                    title: 'Climate Action in Southeast Asia: Progress and Challenges',
+                    description: 'An in-depth look at environmental policies and climate initiatives across Southeast Asian nations.',
+                    published: new Date(Date.now() - 8 * 3600000).toISOString(),
+                    author: 'CNA',
+                    isShort: false,
+                    views: 156000,
+                    url: 'https://www.youtube.com/watch?v=cna005',
+                    detectionMethod: 'mock data (Regular)'
+                },
+                {
+                    videoId: 'cna006',
+                    title: 'Breaking: Political Update #Shorts',
+                    description: 'Quick political developments from across Asia. Breaking news update.',
+                    published: new Date(Date.now() - 10 * 3600000).toISOString(),
+                    author: 'CNA',
+                    isShort: true,
+                    views: 92000,
+                    url: 'https://www.youtube.com/shorts/cna006',
+                    detectionMethod: 'mock data (Short)'
+                }
+            ];
+        }
+
+        function detectYouTubeShort(url, content) {
+            // Method 1: Check URL for /shorts/ path
+            if (url && url.includes('/shorts/')) {
+                return true;
+            }
+            
+            // Method 2: Check for Shorts-specific keywords in content
+            const shortsKeywords = [
+                '#shorts',
+                '#short',
+                'youtube shorts',
+                'shorts video',
+                '60 seconds',
+                '60秒',
+                'quick update',
+                'in seconds',
+                'short form',
+                'vertical video'
+            ];
+            
+            const contentLower = content.toLowerCase();
+            
+            for (let keyword of shortsKeywords) {
+                if (contentLower.includes(keyword)) {
+                    return true;
+                }
+            }
+            
+            // Method 3: Check for time indicators suggesting short content
+            const timePatterns = [
+                /\b(?:60|30|45)\s*sec/i,
+                /\b(?:1|one)\s*minute/i,
+                /\bquick\s+(?:take|update|look)/i,
+                /\bin\s*\d{1,2}\s*seconds/i
+            ];
+            
+            for (let pattern of timePatterns) {
+                if (pattern.test(content)) {
+                    return true;
+                }
+            }
+            
+            // Method 4: Check title length and structure (Shorts tend to be shorter, punchier)
+            const words = content.split(' ');
+            if (words.length <= 8 && (contentLower.includes('breaking') || contentLower.includes('update'))) {
+                return true;
+            }
+            
+            return false; // Default to regular video
+        }
+
+        function extractVideoId(url) {
+            // Handle different YouTube URL formats
+            const patterns = [
+                /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)([^&\n?#]+)/,
+                /youtube\.com\/embed\/([^&\n?#]+)/,
+                /youtube\.com\/v\/([^&\n?#]+)/
+            ];
+            
+            for (let pattern of patterns) {
+                const match = url.match(pattern);
+                if (match) {
+                    return match[1];
+                }
+            }
+            
+            return 'dQw4w9WgXcQ'; // Fallback
+        }
+
+        function filterVideos(type) {
+            currentFilter = type;
+            currentPage = 0; // Reset to first page when changing filter
+            
+            // Update active tab
+            document.querySelectorAll('.filter-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            displayCarousel();
+        }
+
+        function formatTime(dateString) {
+            const date = new Date(dateString);
+            const now = new Date();
+            const diffMs = now - date;
+            const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+            const diffMonths = Math.floor(diffDays / 30);
+            const diffYears = Math.floor(diffDays / 365);
+
+            if (diffYears > 0) {
+                return `${diffYears}年前`;
+            } else if (diffMonths > 0) {
+                return `${diffMonths}个月前`;
+            } else if (diffDays > 0) {
+                return `${diffDays}天前`;
+            } else {
+                const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+                return diffHours > 0 ? `${diffHours}小时前` : '刚刚';
+            }
+        }
+
+        function formatViews(views) {
+            if (views >= 10000) {
+                return Math.floor(views / 10000) + '万';
+            } else if (views >= 1000) {
+                return (views / 1000).toFixed(1) + '千';
+            }
+            return views.toString();
+        }
+
+        function refreshVideos() {
+            fetchCNAVideos();
+        }
+
+        function updateLastUpdated() {
+            const now = new Date();
+            const timeString = now.toLocaleString('zh-CN');
+            document.getElementById('last-updated').textContent = `最后更新: ${timeString}`;
+        }
+    </script>
+</body>
+</html>
