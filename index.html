@@ -3,7 +3,9 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Collab Canvas — Yjs Prototype</title>
+  <title>Collab Canvas — Yjs Prototype (Patched)</title>
+  <!-- Inline favicon to avoid 404 -->
+  <link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="%230b0d10"/><rect x="20" y="38" width="60" height="24" rx="6" fill="%236ba8ff"/></svg>' />
   <style>
     :root{
       --bg:#0b0d10;
@@ -113,8 +115,11 @@
 
   <script type="module">
     // --- Imports (ESM over CDN) ---
+    // Pin yjs once, and make y-websocket/webrtc treat yjs as external to prevent double-import:
     import * as Y from "https://esm.sh/yjs@13.6.14";
-    import { WebsocketProvider } from "https://esm.sh/y-websocket@1.5.4";
+    import { WebsocketProvider } from "https://esm.sh/y-websocket@1.5.4?external=yjs";
+    // Optional fallback (peer-to-peer). Will be dynamically used only if websocket fails:
+    import { WebrtcProvider } from "https://esm.sh/y-webrtc@10.6.4?external=yjs";
 
     // --- DOM refs ---
     const canvas = document.getElementById('canvas');
@@ -134,7 +139,7 @@
 
     // --- Viewport (pan/zoom) ---
     let scale = 1;
-    let origin = {x: 0, y: 0}; // world-space origin offset (in screen px)
+    let origin = {x: 0, y: 0};
     let isPanning = false;
     let panStart = {x: 0, y: 0};
     let originStart = {x: 0, y: 0};
@@ -149,12 +154,12 @@
 
     // --- Yjs state ---
     let ydoc = null;
-    let provider = null;
+    let provider = null; // either WebsocketProvider or WebrtcProvider
+    let providerType = null;
     let yShapes = null; // Y.Array<Y.Map>
-    const servers = [
-      "wss://demos.yjs.dev",           // Yjs public demo (best for quick tests)
-      // Add more if you have them:
-      // "wss://your-self-hosted-y-websocket.example.com"
+    const wsServers = [
+      "wss://demos.yjs.dev"
+      // Add your own y-websocket endpoint(s) here for production
     ];
 
     // --- Client identity ---
@@ -213,86 +218,100 @@
       ydoc = new Y.Doc();
       yShapes = ydoc.getArray('shapes');
 
-      // Try providers sequentially until connected
-      let index = 0;
-      async function tryConnect(){
-        const url = servers[index];
-        provider = new WebsocketProvider(url, `room-${roomId}`, ydoc, { connect: true });
-        setStatus('connecting…');
-        provider.on('status', (e) => {
-          if (e.status === 'connected'){
-            connected = true;
-            setStatus('connected');
-          } else {
-            setStatus('disconnected');
-          }
-        });
-        provider.on('sync', (isSynced) => {
-          // initial doc synced
-          draw();
-        });
-        provider.awareness.on('change', () => {
-          updatePresence();
-          draw();
-        });
+      // Observe shapes
+      yShapes.observeDeep(() => { draw(); });
 
-        // local awareness state (name, color, cursor)
-        const current = provider.awareness.getLocalState() || {};
-        provider.awareness.setLocalState({
-          ...current,
-          name: nameInput.value || 'anon',
-          color: colorInput.value,
-        });
-
-        // Observe shapes
-        yShapes.observeDeep(() => {
-          draw();
-        });
-
-        // Wait briefly; if not connected, try next server
-        let tries = 0;
-        const maxTries = 40; // ~8s
-        const interval = setInterval(() => {
-          tries++;
-          if (connected){
-            clearInterval(interval);
-          } else if (tries >= maxTries){
-            clearInterval(interval);
-            provider.destroy();
-            index++;
-            if (index < servers.length){
-              tryConnect();
-            } else {
-              setStatus('no server');
-              alert('Could not connect to any Yjs server. You can still edit locally, but collaboration will not work.\n\nTip: Use the public demo server (default) or point to your own y-websocket server.');
-            }
-          }
-        }, 200);
+      // Try websocket first, then fall back to WebRTC
+      await tryWebsocket(roomId);
+      if (!connected){
+        await tryWebrtc(roomId);
       }
-      tryConnect();
+    }
+
+    async function tryWebsocket(roomId){
+      let index = 0;
+      async function attempt(){
+        if (index >= wsServers.length) return;
+        const url = wsServers[index];
+        provider = new WebsocketProvider(url, `room-${roomId}`, ydoc, { connect: true });
+        providerType = 'websocket';
+        bindProviderCommon(provider);
+        setStatus('connecting (WS)…');
+        // Simple timeout fallback
+        const ok = await waitForConnected(4000);
+        if (!ok){
+          provider.destroy();
+          index++;
+          await attempt();
+        }
+      }
+      await attempt();
+    }
+
+    async function tryWebrtc(roomId){
+      try{
+        provider = new WebrtcProvider(`room-${roomId}`, ydoc, {
+          // Allow NAT traversal; this uses public Google STUN by default
+          // You can add TURN for reliability if needed.
+          signaling: ["wss://signaling.yjs.dev"] // public signaling
+        });
+        providerType = 'webrtc';
+        bindProviderCommon(provider);
+        setStatus('connecting (WebRTC)…');
+        await waitForConnected(4000); // settle
+      }catch(err){
+        console.error('WebRTC init failed', err);
+      }
+    }
+
+    function bindProviderCommon(p){
+      connected = false;
+      // Status (WS has 'status' events; WebRTC does not, so we infer via peers)
+      if (p.on && p.on.bind){
+        p.on('status', (e) => {
+          if (e.status === 'connected'){ connected = true; setStatus('connected'); }
+          else setStatus('disconnected');
+        });
+      }
+      // Awareness
+      p.awareness.on('change', () => { updatePresence(); draw(); });
+      const current = p.awareness.getLocalState() || {};
+      p.awareness.setLocalState({
+        ...current,
+        name: nameInput.value || 'anon',
+        color: colorInput.value,
+      });
+    }
+
+    function waitForConnected(ms){
+      return new Promise((resolve) => {
+        const start = performance.now();
+        const tick = () => {
+          if (connected) return resolve(true);
+          if (performance.now() - start > ms) return resolve(false);
+          requestAnimationFrame(tick);
+        };
+        tick();
+      });
     }
 
     function disconnect(){
       connected = false;
       if (provider){
-        provider.destroy();
+        try{ provider.destroy?.(); }catch(_){}
         provider = null;
       }
       if (ydoc){
-        ydoc.destroy();
+        try{ ydoc.destroy(); }catch(_){}
         ydoc = null;
       }
     }
 
     function setStatus(text){
-      statusEl.textContent = text;
-      if (text === 'connected'){
-        statusEl.style.color = '#a7ffb4';
-      } else if (text === 'connecting…'){
-        statusEl.style.color = '#fff';
-      } else {
-        statusEl.style.color = '#ffd2d2';
-      }
+      statusEl.textContent = text + (providerType ? ` • ${providerType}` : '');
+      if (text.includes('connected')) statusEl.style.color = '#a7ffb4';
+      else if (text.includes('connecting')) statusEl.style.color = '#fff';
+      else statusEl.style.color = '#ffd2d2';
     }
 
     function updatePresence(){
@@ -302,11 +321,8 @@
     }
 
     // --- Hit-testing shapes ---
-    function shapesToArray(){
-      return yShapes ? yShapes.toArray() : [];
-    }
+    function shapesToArray(){ return yShapes ? yShapes.toArray() : []; }
     function shapeAt(px, py){
-      // Return topmost Y.Map shape under given world coords
       const arr = shapesToArray();
       for (let i = arr.length - 1; i >= 0; i--){
         const s = arr[i];
@@ -437,14 +453,12 @@
 
     // --- Interaction ---
     let drag = null; // {shape, dx, dy, dup:boolean}
-    let hoveredId = null;
 
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
     window.addEventListener('keydown', (e) => {
-      if (e.code === 'Space') { spaceDown = true; }
+      if (e.code === 'Space') { e.preventDefault(); spaceDown = true; }
       if ((e.key === 'Delete' || e.key === 'Backspace') && drag && drag.shape){
-        // delete selected shape
         const idx = shapesToArray().findIndex(s => s === drag.shape);
         if (idx >= 0) yShapes.delete(idx, 1);
         drag = null;
@@ -476,11 +490,8 @@
         const dy = wpos.y - target.get('y');
         drag = {shape: target, dx, dy, dup: e.altKey};
         if (drag.dup){
-          // duplicate on drag start
           const clone = new Y.Map();
-          for (const [k,v] of target.entries()){
-            clone.set(k, v);
-          }
+          for (const [k,v] of target.entries()){ clone.set(k, v); }
           clone.set('id', crypto.randomUUID());
           yShapes.push([clone]);
           drag.shape = clone;
@@ -523,17 +534,12 @@
         draw();
         return;
       }
-      // hover
-      const target = shapeAt(wpos.x, wpos.y);
-      hoveredId = target ? target.get('id') : null;
-      canvas.style.cursor = target ? 'grab' : (spaceDown ? 'grabbing' : 'default');
+      canvas.style.cursor = (spaceDown ? 'grabbing' : 'default');
     });
 
     canvas.addEventListener('pointerup', (e) => {
       isPanning = false;
-      if (drag){
-        drag = null;
-      }
+      if (drag){ drag = null; }
       canvas.releasePointerCapture(e.pointerId);
       draw();
     });
@@ -546,7 +552,6 @@
       const before = screenToWorld(sx, sy);
       const factor = Math.exp(-e.deltaY * 0.0015);
       const newScale = Math.min(4, Math.max(0.2, scale * factor));
-      // zoom around cursor
       scale = newScale;
       const after = screenToWorld(sx, sy);
       origin.x += (after.x - before.x) * scale;
@@ -611,7 +616,6 @@
       roomInput.value = room;
       setHash(room);
       connect(room);
-      // Center origin a bit
       origin.x = canvas.width/2;
       origin.y = canvas.height/2;
       draw();
