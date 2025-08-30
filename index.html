@@ -776,62 +776,6 @@ html.retro #theme {
 </style>
 <style>
 
-  /* === Canvas Bottom-Center Description (injected) === */
-  /* Fallback when appended to 
-<body>
-  <button id="shareButton" style="position: fixed; top: 10px; right: 10px; padding: 10px; background-color: #4CAF50; color: white; border: none; border-radius: 5px;">Share Mood Board</button>
-
-  <!-- Modal for Share Link -->
-  <div class="modal-overlay" id="modalOverlay" style="display: none;"></div>
-  <div id="shareModal" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 80%; max-width: 600px; background: rgba(0, 0, 0, 0.8); color: white; padding: 20px; border-radius: 8px; z-index: 1000;">
-    <h2>Share Your Mood Board</h2>
-    <input type="text" id="shareLink" readonly placeholder="Generated link will appear here..." style="width: 100%; padding: 10px; background-color: #333; color: white; border: none; border-radius: 5px; text-align: center;">
-    <button id="copyLinkButton" style="padding: 10px 20px; background-color: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; margin-top: 10px;">Copy Link</button>
-  </div>
-
-  <script>
-    // Example of mood board state (this would be dynamically captured)
-    const boardState = {
-      nodes: [{ id: 1, x: 100, y: 100, width: 200, height: 200, content: 'Node 1' }],
-      zoom: 1.0,
-      pan: { x: 0, y: 0 }
-    };
-
-    // Function to serialize the state and generate the URL
-    function serializeState(state) {
-      return btoa(JSON.stringify(state)); // Base64 encode the serialized state
-    }
-
-    // Function to show the share modal
-    function showShareModal() {
-      const serializedState = serializeState(boardState);
-      const link = window.location.href.split('?')[0] + '?state=' + serializedState;
-      document.getElementById('shareLink').value = link;
-      document.getElementById('modalOverlay').style.display = 'block';
-      document.getElementById('shareModal').style.display = 'block';
-    }
-
-    // Function to copy the link to the clipboard
-    function copyLink() {
-      const shareLink = document.getElementById('shareLink');
-      shareLink.select();
-      document.execCommand('copy');
-      alert('Link copied to clipboard!');
-    }
-
-    // Event listener for the share button
-    document.getElementById('shareButton').addEventListener('click', showShareModal);
-
-    // Event listener for the copy link button
-    document.getElementById('copyLinkButton').addEventListener('click', copyLink);
-
-    // Close modal when overlay is clicked
-    document.getElementById('modalOverlay').addEventListener('click', () => {
-      document.getElementById('modalOverlay').style.display = 'none';
-      document.getElementById('shareModal').style.display = 'none';
-    });
-  </script>
- */
   #canvasDescription {
     position: fixed;
     left: 50%;
@@ -1970,11 +1914,24 @@ body.retro #tbCtxMenu{
 </head>
 
 <body>
-  <button id="shareButton" style="position: fixed; top: 10px; right: 10px; padding: 10px; background-color: #4CAF50; color: white; border: none; border-radius: 5px;">Share Mood Board</button>
+  
+    <button id="shareButton" 
+            style="position: fixed; top: 10px; right: 550px; padding: 10px 20px; background-color: #4CAF50; color: white; 
+                   border: none; border-radius: 5px; font-size: 16px; z-index: 2000; cursor: pointer;">
+            Share Mood Board
+    </button>
+    
 
   <!-- Modal for Share Link -->
-  <div class="modal-overlay" id="modalOverlay" style="display: none;"></div>
-  <div id="shareModal" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 80%; max-width: 600px; background: rgba(0, 0, 0, 0.8); color: white; padding: 20px; border-radius: 8px; z-index: 1000;">
+  
+    <div class="modal-overlay" id="modalOverlay" style="display: none; position: fixed; top: 0; left: 0; 
+         width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); z-index: 1000;"></div>
+    
+  
+    <div id="shareModal" class="share-modal" style="display: none; position: fixed; top: 50%; left: 50%; 
+         transform: translate(-50%, -50%); width: 80%; max-width: 600px; background: rgba(0, 0, 0, 0.8); 
+         color: white; padding: 20px; border-radius: 8px; z-index: 1000;">
+    
     <h2>Share Your Mood Board</h2>
     <input type="text" id="shareLink" readonly placeholder="Generated link will appear here..." style="width: 100%; padding: 10px; background-color: #333; color: white; border: none; border-radius: 5px; text-align: center;">
     <button id="copyLinkButton" style="padding: 10px 20px; background-color: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; margin-top: 10px;">Copy Link</button>
