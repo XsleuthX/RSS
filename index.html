@@ -1,905 +1,630 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CNA RSS</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
-            background-color: #f8f8f8;
-            color: #333;
-            line-height: 1.4;
-            padding: 20px;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-
-        .video-item {
-            background-color: white;
-            border-radius: 8px;
-            overflow: hidden;
-            margin-bottom: 16px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            display: flex;
-            gap: 16px;
-            padding: 16px;
-        }
-
-        /* Regular YouTube video embed */
-        .video-embed {
-            flex-shrink: 0;
-            width: 320px;
-            height: 180px;
-            border-radius: 8px;
-            overflow: hidden;
-            position: relative;
-        }
-
-        /* YouTube Shorts embed - vertical format */
-        .video-embed.shorts {
-            width: 180px;
-            height: 320px;
-        }
-
-        .video-embed iframe {
-            width: 100%;
-            height: 100%;
-            border: none;
-        }
-
-        .video-content {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            justify-content: flex-start;
-        }
-
-        .video-title {
-            font-size: 18px;
-            font-weight: 500;
-            color: #333;
-            margin-bottom: 8px;
-            line-height: 1.3;
-            text-decoration: none;
-        }
-
-        .video-title:hover {
-            color: #1a73e8;
-        }
-
-        .video-meta {
-            font-size: 13px;
-            color: #666;
-            margin-bottom: 8px;
-        }
-
-        .video-description {
-            font-size: 14px;
-            color: #555;
-            line-height: 1.4;
-            margin-top: 4px;
-        }
-
-        .channel-info {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-bottom: 4px;
-        }
-
-        .channel-logo {
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-        }
-
-        .channel-name {
-            font-size: 13px;
-            color: #666;
-        }
-
-        .shorts-badge {
-            background-color: #ff0000;
-            color: white;
-            font-size: 10px;
-            padding: 2px 6px;
-            border-radius: 3px;
-            font-weight: bold;
-            margin-left: 8px;
-        }
-
-        .loading {
-            text-align: center;
-            padding: 40px;
-            color: #666;
-            font-size: 16px;
-        }
-
-        .error {
-            background-color: #fff3cd;
-            color: #856404;
-            padding: 12px 16px;
-            border-radius: 8px;
-            margin-bottom: 16px;
-            border: 1px solid #ffeaa7;
-        }
-
-        .debug-info {
-            background-color: #e3f2fd;
-            color: #1565c0;
-            padding: 12px 16px;
-            border-radius: 8px;
-            margin-bottom: 16px;
-            border: 1px solid #90caf9;
-            font-family: monospace;
-            font-size: 12px;
-        }
-
-        .refresh-btn {
-            background-color: #f0f0f0;
-            color: #333;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 20px;
-            cursor: pointer;
-            font-size: 14px;
-            margin-bottom: 20px;
-        }
-
-        .refresh-btn:hover {
-            background-color: #e0e0e0;
-        }
-
-        .carousel-container {
-            position: relative;
-            margin-bottom: 20px;
-        }
-
-        .carousel-wrapper {
-            overflow: hidden;
-            border-radius: 8px;
-        }
-
-        .carousel-content {
-            display: flex;
-            transition: transform 0.3s ease;
-        }
-
-        .carousel-page {
-            min-width: 100%;
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-        }
-
-        .pagination-controls {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 12px;
-            margin-top: 20px;
-        }
-
-        .pagination-btn {
-            background-color: #f0f0f0;
-            color: #333;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 20px;
-            cursor: pointer;
-            font-size: 14px;
-        }
-
-        .pagination-btn:hover {
-            background-color: #e0e0e0;
-        }
-
-        .pagination-btn:disabled {
-            background-color: #f5f5f5;
-            color: #999;
-            cursor: not-allowed;
-        }
-
-        .pagination-info {
-            font-size: 14px;
-            color: #666;
-            margin: 0 8px;
-        }
-
-        .test-btn {
-            background-color: #34a853;
-            color: white;
-            border: none;
-            padding: 10px 16px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-            margin-bottom: 20px;
-        }
-
-        .header {
-            text-align: center;
-            margin-bottom: 24px;
-        }
-
-        .header h1 {
-            font-size: 24px;
-            font-weight: 400;
-            color: #333;
-            margin-bottom: 8px;
-        }
-
-        .header p {
-            color: #666;
-            font-size: 14px;
-        }
-
-        .filter-tabs {
-            display: flex;
-            gap: 12px;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
-        }
-
-        .filter-tab {
-            padding: 8px 16px;
-            background-color: #f0f0f0;
-            border: none;
-            border-radius: 20px;
-            cursor: pointer;
-            font-size: 14px;
-            color: #333;
-        }
-
-        .filter-tab.active {
-            background-color: #1a73e8;
-            color: white;
-        }
-
-        .filter-tab:hover {
-            background-color: #e0e0e0;
-        }
-
-        .filter-tab.active:hover {
-            background-color: #1557b0;
-        }
-
-        @media (max-width: 768px) {
-            .video-item {
-                flex-direction: column;
-                gap: 12px;
-            }
-            
-            .video-embed {
-                width: 100%;
-                height: 200px;
-            }
-
-            .video-embed.shorts {
-                width: 200px;
-                height: 356px;
-                margin: 0 auto;
-            }
-            
-            body {
-                padding: 12px;
-            }
-        }
-
-        .last-updated {
-            text-align: center;
-            font-size: 12px;
-            color: #999;
-            margin-top: 24px;
-        }
-
-        .video-type-indicator {
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            background-color: rgba(0, 0, 0, 0.8);
-            color: white;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 11px;
-            font-weight: bold;
-        }
-
-        .detection-debug {
-            font-size: 10px;
-            color: #999;
-            margin-top: 4px;
-        }
-
-        .search-container {
-            margin-bottom: 24px;
-            background-color: white;
-            border-radius: 8px;
-            padding: 20px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-
-        .search-box {
-            display: flex;
-            gap: 8px;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-
-        #keyword-input {
-            flex: 1;
-            min-width: 250px;
-            padding: 12px 16px;
-            border: 2px solid #e0e0e0;
-            border-radius: 6px;
-            font-size: 14px;
-            font-family: inherit;
-        }
-
-        #keyword-input:focus {
-            outline: none;
-            border-color: #1a73e8;
-        }
-
-        .search-btn {
-            background-color: #1a73e8;
-            color: white;
-            border: none;
-            padding: 12px 20px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 500;
-        }
-
-        .search-btn:hover {
-            background-color: #1557b0;
-        }
-
-        .search-btn:disabled {
-            background-color: #ccc;
-            cursor: not-allowed;
-        }
-
-        .clear-btn {
-            background-color: #6c757d;
-            color: white;
-            border: none;
-            padding: 12px 16px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 14px;
-        }
-
-        .clear-btn:hover {
-            background-color: #5a6268;
-        }
-
-        .search-info {
-            margin-top: 12px;
-            padding: 8px 12px;
-            background-color: #f8f9fa;
-            border-radius: 4px;
-            font-size: 13px;
-            color: #495057;
-            border-left: 3px solid #007bff;
-        }
-
-        .search-info.empty {
-            display: none;
-        }
-    </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Collab Canvas — Yjs Prototype</title>
+  <style>
+    :root{
+      --bg:#0b0d10;
+      --panel:#11161c;
+      --text:#d7e1ee;
+      --muted:#7f8b9e;
+      --accent:#6ba8ff;
+      --danger:#ff6b6b;
+      --grid:#1a2330;
+      --grid-bold:#1f2a3a;
+      --shadow: 0 8px 24px rgba(0,0,0,.35);
+    }
+    html,body{height:100%;}
+    body{
+      margin:0;
+      background:var(--bg);
+      color:var(--text);
+      font:14px/1.4 system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans", Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      overflow:hidden;
+      user-select:none;
+    }
+    #topbar{
+      position:fixed;
+      inset:12px 12px auto 12px;
+      display:flex;
+      gap:8px;
+      align-items:center;
+      background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+      padding:10px 12px;
+      border-radius:14px;
+      box-shadow:var(--shadow);
+      border:1px solid rgba(255,255,255,.08);
+      backdrop-filter: blur(6px);
+      z-index:10;
+    }
+    #topbar input[type="text"]{
+      background:#0f141b;
+      color:var(--text);
+      border:1px solid rgba(255,255,255,.08);
+      padding:8px 10px;
+      border-radius:10px;
+      width:180px;
+      outline:none;
+    }
+    #topbar input[type="color"]{
+      width:36px;height:34px;border:none;background:transparent;padding:0;cursor:pointer;
+    }
+    #topbar button{
+      background:#151c26;
+      color:var(--text);
+      border:1px solid rgba(255,255,255,.10);
+      padding:8px 12px;
+      border-radius:10px;
+      cursor:pointer;
+    }
+    #topbar button.primary{ border-color:rgba(107,168,255,.5); box-shadow: inset 0 0 0 1px rgba(107,168,255,.35); }
+    #topbar button:hover{ filter:brightness(1.15); }
+    #canvas{position:fixed; inset:0;}
+    #hud{
+      position:fixed;
+      right:12px;
+      bottom:12px;
+      background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+      border:1px solid rgba(255,255,255,.08);
+      border-radius:12px;
+      padding:8px 12px;
+      box-shadow:var(--shadow);
+      display:flex; gap:10px; align-items:center;
+    }
+    .chip{padding:6px 10px;border-radius:999px;background:#131a22;border:1px solid rgba(255,255,255,.1);color:var(--muted);}
+    #help{
+      position:fixed; left:12px; bottom:12px; color:var(--muted); opacity:.9; background:rgba(0,0,0,.25);
+      padding:8px 10px; border-radius:10px; border:1px solid rgba(255,255,255,.07);
+    }
+    a.link{color:var(--accent); text-decoration:none;}
+    a.link:hover{text-decoration:underline;}
+  </style>
 </head>
 <body>
-    <div class="container">
+  <div id="topbar">
+    <span style="opacity:.8">Room</span>
+    <input id="room" type="text" placeholder="room-id" />
+    <button id="newRoom">New</button>
+    <button id="copyLink">Copy link</button>
+    <span style="opacity:.8">Name</span>
+    <input id="name" type="text" placeholder="your name" />
+    <input id="color" type="color" />
+    <button id="addRect">Add Rect</button>
+    <button id="addSticky">Add Sticky</button>
+    <button id="clear" style="color:#ffd2d2;border-color:#000">Clear</button>
+    <span id="status" class="chip">connecting…</span>
+    <span id="online" class="chip">0 online</span>
+  </div>
 
+  <canvas id="canvas"></canvas>
 
+  <div id="hud">
+    <span id="zoom" class="chip">100%</span>
+    <span id="pos" class="chip">0,0</span>
+  </div>
 
-        <div class="filter-tabs">
-            <button class="filter-tab active" onclick="filterVideos('all')">All Videos</button>
-            <button class="filter-tab" onclick="filterVideos('regular')">YouTube Videos</button>
-            <button class="filter-tab" onclick="filterVideos('shorts')">YouTube Shorts</button>
-        </div>
+  <div id="help">
+    <div><strong>Pan:</strong> hold <kbd>Space</kbd> + drag / right-drag • <strong>Zoom:</strong> mouse wheel</div>
+    <div><strong>Drag shape:</strong> left-drag • <strong>Duplicate:</strong> <kbd>Alt</kbd> + drag • <strong>Delete:</strong> <kbd>Del</kbd></div>
+    <div><strong>Presence:</strong> colored cursors show live collaborators. Viewport is independent.</div>
+  </div>
 
-        <button class="refresh-btn" onclick="refreshVideos()">Refresh</button>
+  <script type="module">
+    // --- Imports (ESM over CDN) ---
+    import * as Y from "https://esm.sh/yjs@13.6.14";
+    import { WebsocketProvider } from "https://esm.sh/y-websocket@1.5.4";
 
-        <div class="carousel-container">
-            <div class="carousel-wrapper">
-                <div class="carousel-content" id="carousel-content">
-                    <!-- Video pages will be inserted here -->
-                </div>
-            </div>
-            <div class="pagination-controls" id="pagination-controls">
-                <!-- Pagination will be inserted here -->
-            </div>
-        </div>
+    // --- DOM refs ---
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const roomInput = document.getElementById('room');
+    const nameInput = document.getElementById('name');
+    const colorInput = document.getElementById('color');
+    const statusEl = document.getElementById('status');
+    const onlineEl = document.getElementById('online');
+    const zoomEl = document.getElementById('zoom');
+    const posEl = document.getElementById('pos');
+    const btnNewRoom = document.getElementById('newRoom');
+    const btnCopyLink = document.getElementById('copyLink');
+    const btnAddRect = document.getElementById('addRect');
+    const btnAddSticky = document.getElementById('addSticky');
+    const btnClear = document.getElementById('clear');
 
-        <div class="last-updated" id="last-updated"></div>
-    </div>
+    // --- Viewport (pan/zoom) ---
+    let scale = 1;
+    let origin = {x: 0, y: 0}; // world-space origin offset (in screen px)
+    let isPanning = false;
+    let panStart = {x: 0, y: 0};
+    let originStart = {x: 0, y: 0};
+    let spaceDown = false;
 
-    <script>
-        let allVideos = [];
-        let currentFilter = 'all';
-        let currentPage = 0;
-        let videosPerPage = 3;
-        let totalPages = 0;
+    function resize(){
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      draw();
+    }
+    window.addEventListener('resize', resize);
 
-        // Initialize
-        document.addEventListener('DOMContentLoaded', function() {
-            fetchCNAVideos();
-            // Auto-refresh every 15 minutes
-            setInterval(fetchCNAVideos, 900000);
+    // --- Yjs state ---
+    let ydoc = null;
+    let provider = null;
+    let yShapes = null; // Y.Array<Y.Map>
+    const servers = [
+      "wss://demos.yjs.dev",           // Yjs public demo (best for quick tests)
+      // Add more if you have them:
+      // "wss://your-self-hosted-y-websocket.example.com"
+    ];
+
+    // --- Client identity ---
+    function randColor() {
+      const hue = Math.floor(Math.random()*360);
+      return `hsl(${hue}, 80%, 60%)`;
+    }
+    const defaultName = localStorage.getItem('collab_name') || '';
+    const defaultColor = localStorage.getItem('collab_color') || '#4cc9f0';
+    nameInput.value = defaultName;
+    colorInput.value = defaultColor;
+
+    // --- Shapes helpers ---
+    function createShapeRect({x, y, w=160, h=100, fill, text=""}){
+      const m = new Y.Map();
+      m.set('id', crypto.randomUUID());
+      m.set('type', 'rect');
+      m.set('x', x);
+      m.set('y', y);
+      m.set('w', w);
+      m.set('h', h);
+      m.set('fill', fill || colorInput.value);
+      m.set('text', text);
+      m.set('createdBy', nameInput.value || 'anon');
+      return m;
+    }
+    function createSticky({x,y,w=160,h=120, fill, text="Sticky note"}){
+      const m = new Y.Map();
+      m.set('id', crypto.randomUUID());
+      m.set('type', 'sticky');
+      m.set('x', x);
+      m.set('y', y);
+      m.set('w', w);
+      m.set('h', h);
+      m.set('fill', fill || '#ffd66b');
+      m.set('text', text);
+      m.set('createdBy', nameInput.value || 'anon');
+      return m;
+    }
+
+    function roomFromHash(){
+      const h = (location.hash || '').replace(/^#/, '');
+      return h && h.length ? h : null;
+    }
+    function setHash(room){
+      history.replaceState(null, '', '#'+room);
+    }
+    function randomRoom(){
+      return Math.random().toString(36).slice(2, 8);
+    }
+
+    // --- Connect to a room ---
+    let connected = false;
+    async function connect(roomId){
+      disconnect(); // ensure clean
+      ydoc = new Y.Doc();
+      yShapes = ydoc.getArray('shapes');
+
+      // Try providers sequentially until connected
+      let index = 0;
+      async function tryConnect(){
+        const url = servers[index];
+        provider = new WebsocketProvider(url, `room-${roomId}`, ydoc, { connect: true });
+        setStatus('connecting…');
+        provider.on('status', (e) => {
+          if (e.status === 'connected'){
+            connected = true;
+            setStatus('connected');
+          } else {
+            setStatus('disconnected');
+          }
+        });
+        provider.on('sync', (isSynced) => {
+          // initial doc synced
+          draw();
+        });
+        provider.awareness.on('change', () => {
+          updatePresence();
+          draw();
         });
 
-        async function fetchCNAVideos() {
-            showLoading();
+        // local awareness state (name, color, cursor)
+        const current = provider.awareness.getLocalState() || {};
+        provider.awareness.setLocalState({
+          ...current,
+          name: nameInput.value || 'anon',
+          color: colorInput.value,
+        });
 
-            try {
-                // CNA YouTube Channel ID
-                const channelId = 'UC83jt4dlz1Gjl58fzQrrKZg';
-                
-                // Fetch all videos from RSS
-                const videos = await fetchAllVideosFromRSS(channelId);
-                
-                if (!videos || videos.length === 0) {
-                    throw new Error('No videos found in RSS feed');
-                }
-                
-                // Process videos and detect Short vs Regular
-                allVideos = videos.map(video => {
-                    const isShort = detectYouTubeShort(video.url, video.title + ' ' + video.description);
-                    video.isShort = isShort;
-                    video.detectionMethod = isShort ? 'URL/keyword analysis (Short)' : 'default (Regular)';
-                    
-                    // Truncate description
-                    video.description = video.description.substring(0, 200) + (video.description.length > 200 ? '...' : '');
-                    
-                    return video;
-                });
-                
-                currentPage = 0; // Reset to first page
-                displayCarousel();
-                
-            } catch (error) {
-                console.error('Error fetching CNA videos:', error);
-                
-                // Fallback to mock data
-                allVideos = generateMockCNAVideoData();
-                currentPage = 0;
-                displayCarousel();
-            }
-            
-            updateLastUpdated();
-        }
-        
-        function showLoading() {
-            const carouselContent = document.getElementById('carousel-content');
-            const paginationControls = document.getElementById('pagination-controls');
-            
-            carouselContent.innerHTML = '<div class="loading" style="padding: 40px; text-align: center; color: #666; font-size: 16px;">Loading latest CNA videos...</div>';
-            paginationControls.innerHTML = '';
-        }
-        
-        function displayCarousel() {
-            // Filter videos based on current filter
-            let filteredVideos = allVideos;
-            if (currentFilter === 'regular') {
-                filteredVideos = allVideos.filter(video => !video.isShort);
-            } else if (currentFilter === 'shorts') {
-                filteredVideos = allVideos.filter(video => video.isShort);
-            }
-            
-            if (filteredVideos.length === 0) {
-                const carouselContent = document.getElementById('carousel-content');
-                carouselContent.innerHTML = '<div class="loading" style="padding: 40px; text-align: center; color: #666; font-size: 16px;">No videos found.</div>';
-                document.getElementById('pagination-controls').innerHTML = '';
-                return;
-            }
-            
-            // Calculate total pages
-            totalPages = Math.ceil(filteredVideos.length / videosPerPage);
-            
-            // Ensure currentPage is within bounds
-            if (currentPage >= totalPages) {
-                currentPage = totalPages - 1;
-            }
-            if (currentPage < 0) {
-                currentPage = 0;
-            }
-            
-            // Create carousel pages
-            const carouselContent = document.getElementById('carousel-content');
-            let carouselHTML = '';
-            
-            for (let page = 0; page < totalPages; page++) {
-                const startIndex = page * videosPerPage;
-                const endIndex = Math.min(startIndex + videosPerPage, filteredVideos.length);
-                const pageVideos = filteredVideos.slice(startIndex, endIndex);
-                
-                carouselHTML += '<div class="carousel-page">';
-                
-                pageVideos.forEach(video => {
-                    const publishedTime = formatTime(video.published);
-                    const formattedViews = formatViews(video.views);
-                    
-                    // Use different embed URLs for Shorts vs regular videos
-                    const embedUrl = video.isShort 
-                        ? `https://www.youtube.com/embed/${video.videoId}?rel=0&modestbranding=1`
-                        : `https://www.youtube.com/embed/${video.videoId}`;
-                    
-                    const videoTypeClass = video.isShort ? 'shorts' : '';
-                    const videoTypeIndicator = video.isShort ? 'SHORTS' : 'VIDEO';
-                    
-                    carouselHTML += `
-                        <div class="video-item">
-                            <div class="video-embed ${videoTypeClass}">
-                                <iframe 
-                                    src="${embedUrl}" 
-                                    title="${video.title}"
-                                    frameborder="0" 
-                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
-                                    allowfullscreen>
-                                </iframe>
-                                <div class="video-type-indicator">${videoTypeIndicator}</div>
-                            </div>
-                            <div class="video-content">
-                                <a href="${video.url}" target="_blank" class="video-title">
-                                    ${video.title}
-                                    ${video.isShort ? '<span class="shorts-badge">SHORTS</span>' : ''}
-                                </a>
-                                <div class="channel-info">
-                                    <img src="https://yt3.ggpht.com/wgPJRSVhScqmdNxbqBKU-OMczSo7xhKJJKhWaWF3qRcJBp-rckpMRfS-jEYF8YZ7Dq_rZw=s88-c-k-c0x00ffffff-no-rj" alt="CNA" class="channel-logo">
-                                    <span class="channel-name">${video.author}</span>
-                                </div>
-                                <div class="video-meta">
-                                    ${formattedViews}次观看 • ${publishedTime}
-                                </div>
-                                <div class="video-description">
-                                    ${video.description}
-                                </div>
-                                <div class="detection-debug">Detection: ${video.detectionMethod}</div>
-                            </div>
-                        </div>
-                    `;
-                });
-                
-                carouselHTML += '</div>';
-            }
-            
-            carouselContent.innerHTML = carouselHTML;
-            
-            // Update carousel position
-            updateCarouselPosition();
-            
-            // Create pagination controls
-            createPaginationControls(filteredVideos.length);
-        }
-        
-        function updateCarouselPosition() {
-            const carouselContent = document.getElementById('carousel-content');
-            const translateX = -currentPage * 100;
-            carouselContent.style.transform = `translateX(${translateX}%)`;
-        }
-        
-        function createPaginationControls(totalVideos) {
-            const paginationControls = document.getElementById('pagination-controls');
-            
-            if (totalPages <= 1) {
-                paginationControls.innerHTML = '';
-                return;
-            }
-            
-            let paginationHTML = '';
-            
-            // Previous button
-            paginationHTML += `<button class="pagination-btn" onclick="goToPage(${currentPage - 1})" ${currentPage === 0 ? 'disabled' : ''}>Previous</button>`;
-            
-            // Page info
-            paginationHTML += `<span class="pagination-info">Page ${currentPage + 1} of ${totalPages}</span>`;
-            
-            // Next button
-            paginationHTML += `<button class="pagination-btn" onclick="goToPage(${currentPage + 1})" ${currentPage === totalPages - 1 ? 'disabled' : ''}>Next</button>`;
-            
-            paginationControls.innerHTML = paginationHTML;
-        }
-        
-        function goToPage(page) {
-            if (page >= 0 && page < totalPages) {
-                currentPage = page;
-                updateCarouselPosition();
-                createPaginationControls(allVideos.length);
-            }
-        }
-        
-        async function fetchAllVideosFromRSS(channelId) {
-            // Try multiple methods to fetch the RSS
-            const methods = [
-                {
-                    name: 'AllOrigins',
-                    url: `https://api.allorigins.win/get?url=${encodeURIComponent(`https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`)}`
-                },
-                {
-                    name: 'RSS2JSON',
-                    url: `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(`https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`)}`
-                }
-            ];
+        // Observe shapes
+        yShapes.observeDeep(() => {
+          draw();
+        });
 
-            for (let method of methods) {
-                try {
-                    const response = await fetch(method.url);
-                    
-                    if (!response.ok) {
-                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                    }
-
-                    let xmlContent;
-                    
-                    if (method.name === 'AllOrigins') {
-                        const data = await response.json();
-                        xmlContent = data.contents;
-                    } else if (method.name === 'RSS2JSON') {
-                        const data = await response.json();
-                        if (data.status === 'ok' && data.items) {
-                            // Convert RSS2JSON format to our format
-                            return data.items.map(item => {
-                                const videoId = extractVideoId(item.link);
-                                
-                                return {
-                                    videoId,
-                                    title: item.title,
-                                    description: item.description || '',
-                                    published: item.pubDate,
-                                    author: item.author || 'CNA',
-                                    views: Math.floor(Math.random() * 1000000) + 10000,
-                                    url: item.link
-                                };
-                            });
-                        }
-                    } else {
-                        xmlContent = await response.text();
-                    }
-
-                    if (xmlContent && method.name !== 'RSS2JSON') {
-                        // Parse XML for other methods
-                        const parser = new DOMParser();
-                        const xmlDoc = parser.parseFromString(xmlContent, 'text/xml');
-                        
-                        const entries = xmlDoc.querySelectorAll('entry');
-                        
-                        if (entries.length === 0) {
-                            throw new Error('No entries found in RSS feed');
-                        }
-
-                        return Array.from(entries).map(entry => {
-                            const videoId = entry.querySelector('yt\\:videoId, videoId')?.textContent;
-                            const title = entry.querySelector('title')?.textContent;
-                            const description = entry.querySelector('media\\:description, description')?.textContent || '';
-                            const published = entry.querySelector('published')?.textContent;
-                            const author = entry.querySelector('author name')?.textContent || 'CNA';
-                            const link = entry.querySelector('link')?.getAttribute('href') || `https://www.youtube.com/watch?v=${videoId}`;
-                            
-                            return {
-                                videoId,
-                                title,
-                                description,
-                                published,
-                                author,
-                                views: Math.floor(Math.random() * 1000000) + 10000,
-                                url: link
-                            };
-                        });
-                    }
-                    
-                } catch (error) {
-                    console.error(`${method.name} failed:`, error);
-                    continue;
-                }
-            }
-            
-            throw new Error('All RSS fetch methods failed');
-        }
-        
-        function generateMockCNAVideoData() {
-            return [
-                {
-                    videoId: 'cna001',
-                    title: 'Singapore Economy Update: Growth Projections for 2025',
-                    description: 'Latest analysis on Singapore\'s economic outlook and key growth sectors driving the nation\'s prosperity in the coming year.',
-                    published: new Date(Date.now() - 1 * 3600000).toISOString(),
-                    author: 'CNA',
-                    isShort: false,
-                    views: 125000,
-                    url: 'https://www.youtube.com/watch?v=cna001',
-                    detectionMethod: 'mock data (Regular)'
-                },
-                {
-                    videoId: 'cna002',
-                    title: 'Asia News Roundup #Shorts',
-                    description: 'Quick update on the latest developments across Asia. #shorts #asia #news',
-                    published: new Date(Date.now() - 2 * 3600000).toISOString(),
-                    author: 'CNA',
-                    isShort: true,
-                    views: 85000,
-                    url: 'https://www.youtube.com/shorts/cna002',
-                    detectionMethod: 'mock data (Short)'
-                },
-                {
-                    videoId: 'cna003',
-                    title: 'ASEAN Summit 2025: Key Outcomes and Regional Implications',
-                    description: 'Comprehensive coverage of the ASEAN Summit outcomes and what they mean for Southeast Asian cooperation and development.',
-                    published: new Date(Date.now() - 4 * 3600000).toISOString(),
-                    author: 'CNA',
-                    isShort: false,
-                    views: 98000,
-                    url: 'https://www.youtube.com/watch?v=cna003',
-                    detectionMethod: 'mock data (Regular)'
-                },
-                {
-                    videoId: 'cna004',
-                    title: 'Tech Innovation in 60 Seconds',
-                    description: 'Latest tech breakthroughs from Asian innovation hubs explained quickly.',
-                    published: new Date(Date.now() - 6 * 3600000).toISOString(),
-                    author: 'CNA',
-                    isShort: true,
-                    views: 67000,
-                    url: 'https://www.youtube.com/shorts/cna004',
-                    detectionMethod: 'mock data (Short)'
-                },
-                {
-                    videoId: 'cna005',
-                    title: 'Climate Action in Southeast Asia: Progress and Challenges',
-                    description: 'An in-depth look at environmental policies and climate initiatives across Southeast Asian nations.',
-                    published: new Date(Date.now() - 8 * 3600000).toISOString(),
-                    author: 'CNA',
-                    isShort: false,
-                    views: 156000,
-                    url: 'https://www.youtube.com/watch?v=cna005',
-                    detectionMethod: 'mock data (Regular)'
-                },
-                {
-                    videoId: 'cna006',
-                    title: 'Breaking: Political Update #Shorts',
-                    description: 'Quick political developments from across Asia. Breaking news update.',
-                    published: new Date(Date.now() - 10 * 3600000).toISOString(),
-                    author: 'CNA',
-                    isShort: true,
-                    views: 92000,
-                    url: 'https://www.youtube.com/shorts/cna006',
-                    detectionMethod: 'mock data (Short)'
-                }
-            ];
-        }
-
-        function detectYouTubeShort(url, content) {
-            // Method 1: Check URL for /shorts/ path
-            if (url && url.includes('/shorts/')) {
-                return true;
-            }
-            
-            // Method 2: Check for Shorts-specific keywords in content
-            const shortsKeywords = [
-                '#shorts',
-                '#short',
-                'youtube shorts',
-                'shorts video',
-                '60 seconds',
-                '60秒',
-                'quick update',
-                'in seconds',
-                'short form',
-                'vertical video'
-            ];
-            
-            const contentLower = content.toLowerCase();
-            
-            for (let keyword of shortsKeywords) {
-                if (contentLower.includes(keyword)) {
-                    return true;
-                }
-            }
-            
-            // Method 3: Check for time indicators suggesting short content
-            const timePatterns = [
-                /\b(?:60|30|45)\s*sec/i,
-                /\b(?:1|one)\s*minute/i,
-                /\bquick\s+(?:take|update|look)/i,
-                /\bin\s*\d{1,2}\s*seconds/i
-            ];
-            
-            for (let pattern of timePatterns) {
-                if (pattern.test(content)) {
-                    return true;
-                }
-            }
-            
-            // Method 4: Check title length and structure (Shorts tend to be shorter, punchier)
-            const words = content.split(' ');
-            if (words.length <= 8 && (contentLower.includes('breaking') || contentLower.includes('update'))) {
-                return true;
-            }
-            
-            return false; // Default to regular video
-        }
-
-        function extractVideoId(url) {
-            // Handle different YouTube URL formats
-            const patterns = [
-                /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)([^&\n?#]+)/,
-                /youtube\.com\/embed\/([^&\n?#]+)/,
-                /youtube\.com\/v\/([^&\n?#]+)/
-            ];
-            
-            for (let pattern of patterns) {
-                const match = url.match(pattern);
-                if (match) {
-                    return match[1];
-                }
-            }
-            
-            return 'dQw4w9WgXcQ'; // Fallback
-        }
-
-        function filterVideos(type) {
-            currentFilter = type;
-            currentPage = 0; // Reset to first page when changing filter
-            
-            // Update active tab
-            document.querySelectorAll('.filter-tab').forEach(tab => {
-                tab.classList.remove('active');
-            });
-            event.target.classList.add('active');
-            
-            displayCarousel();
-        }
-
-        function formatTime(dateString) {
-            const date = new Date(dateString);
-            const now = new Date();
-            const diffMs = now - date;
-            const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-            const diffMonths = Math.floor(diffDays / 30);
-            const diffYears = Math.floor(diffDays / 365);
-
-            if (diffYears > 0) {
-                return `${diffYears}年前`;
-            } else if (diffMonths > 0) {
-                return `${diffMonths}个月前`;
-            } else if (diffDays > 0) {
-                return `${diffDays}天前`;
+        // Wait briefly; if not connected, try next server
+        let tries = 0;
+        const maxTries = 40; // ~8s
+        const interval = setInterval(() => {
+          tries++;
+          if (connected){
+            clearInterval(interval);
+          } else if (tries >= maxTries){
+            clearInterval(interval);
+            provider.destroy();
+            index++;
+            if (index < servers.length){
+              tryConnect();
             } else {
-                const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-                return diffHours > 0 ? `${diffHours}小时前` : '刚刚';
+              setStatus('no server');
+              alert('Could not connect to any Yjs server. You can still edit locally, but collaboration will not work.\n\nTip: Use the public demo server (default) or point to your own y-websocket server.');
             }
-        }
+          }
+        }, 200);
+      }
+      tryConnect();
+    }
 
-        function formatViews(views) {
-            if (views >= 10000) {
-                return Math.floor(views / 10000) + '万';
-            } else if (views >= 1000) {
-                return (views / 1000).toFixed(1) + '千';
-            }
-            return views.toString();
-        }
+    function disconnect(){
+      connected = false;
+      if (provider){
+        provider.destroy();
+        provider = null;
+      }
+      if (ydoc){
+        ydoc.destroy();
+        ydoc = null;
+      }
+    }
 
-        function refreshVideos() {
-            fetchCNAVideos();
-        }
+    function setStatus(text){
+      statusEl.textContent = text;
+      if (text === 'connected'){
+        statusEl.style.color = '#a7ffb4';
+      } else if (text === 'connecting…'){
+        statusEl.style.color = '#fff';
+      } else {
+        statusEl.style.color = '#ffd2d2';
+      }
+    }
 
-        function updateLastUpdated() {
-            const now = new Date();
-            const timeString = now.toLocaleString('zh-CN');
-            document.getElementById('last-updated').textContent = `最后更新: ${timeString}`;
+    function updatePresence(){
+      if (!provider) return;
+      const n = provider.awareness.getStates().size;
+      onlineEl.textContent = n + (n === 1 ? ' online' : ' online');
+    }
+
+    // --- Hit-testing shapes ---
+    function shapesToArray(){
+      return yShapes ? yShapes.toArray() : [];
+    }
+    function shapeAt(px, py){
+      // Return topmost Y.Map shape under given world coords
+      const arr = shapesToArray();
+      for (let i = arr.length - 1; i >= 0; i--){
+        const s = arr[i];
+        const x = s.get('x'), y = s.get('y'), w = s.get('w'), h = s.get('h');
+        if (px >= x && px <= x + w && py >= y && py <= y + h) return s;
+      }
+      return null;
+    }
+
+    // --- Coordinate transforms ---
+    function screenToWorld(sx, sy){
+      return { x: (sx - origin.x) / scale, y: (sy - origin.y) / scale };
+    }
+    function worldToScreen(wx, wy){
+      return { x: wx*scale + origin.x, y: wy*scale + origin.y };
+    }
+
+    // --- Draw ---
+    function draw(){
+      if (!ctx) return;
+      ctx.clearRect(0,0,canvas.width, canvas.height);
+      drawGrid();
+      drawShapes();
+      drawCursors();
+      zoomEl.textContent = Math.round(scale*100) + '%';
+      const centerWorld = screenToWorld(canvas.width/2, canvas.height/2);
+      posEl.textContent = `${centerWorld.x.toFixed(0)},${centerWorld.y.toFixed(0)}`;
+    }
+
+    function drawGrid(){
+      const spacing = 40 * scale;
+      const startX = origin.x % spacing;
+      const startY = origin.y % spacing;
+      // small grid
+      ctx.strokeStyle = '#1a2330';
+      ctx.lineWidth = 1;
+      for (let x = startX; x < canvas.width; x += spacing){
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+      }
+      for (let y = startY; y < canvas.height; y += spacing){
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+      }
+      // bold grid
+      const bigSpacing = spacing * 5;
+      const startBX = origin.x % bigSpacing;
+      const startBY = origin.y % bigSpacing;
+      ctx.strokeStyle = '#1f2a3a';
+      ctx.lineWidth = 1.5;
+      for (let x = startBX; x < canvas.width; x += bigSpacing){
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+      }
+      for (let y = startBY; y < canvas.height; y += bigSpacing){
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+      }
+    }
+
+    function drawShapes(){
+      const arr = shapesToArray();
+      for (const s of arr){
+        const type = s.get('type');
+        const x = s.get('x'), y = s.get('y'), w = s.get('w'), h = s.get('h');
+        const {x:sx, y:sy} = worldToScreen(x, y);
+        const sw = w * scale, sh = h * scale;
+        if (type === 'rect'){
+          ctx.fillStyle = s.get('fill') || '#6ba8ff';
+          ctx.strokeStyle = 'rgba(0,0,0,.35)';
+          ctx.lineWidth = 1.5;
+          roundRect(ctx, sx, sy, sw, sh, 10*scale);
+          ctx.fill();
+          ctx.stroke();
+        } else if (type === 'sticky'){
+          ctx.fillStyle = s.get('fill') || '#ffd66b';
+          ctx.strokeStyle = 'rgba(0,0,0,.25)';
+          ctx.lineWidth = 1.5;
+          roundRect(ctx, sx, sy, sw, sh, 12*scale);
+          ctx.fill();
+          ctx.stroke();
+          // sticky header
+          ctx.fillStyle = 'rgba(0,0,0,.08)';
+          ctx.fillRect(sx, sy, sw, Math.min(24*scale, sh));
         }
-    </script>
+        // text label
+        const label = s.get('text') || '';
+        if (label){
+          ctx.fillStyle = '#0b0d10';
+          ctx.font = `${Math.max(12*scale, 10)}px system-ui`;
+          ctx.textBaseline = 'top';
+          ctx.fillText(label, sx + 10*scale, sy + 8*scale, Math.max(sw - 20*scale, 20));
+        }
+      }
+    }
+
+    function drawCursors(){
+      if (!provider) return;
+      const states = provider.awareness.getStates();
+      for (const [id, st] of states){
+        if (!st || !st.cursor) continue;
+        const {x, y} = st.cursor;
+        const p = worldToScreen(x, y);
+        // cursor dot
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, Math.max(4, 4*scale), 0, Math.PI*2);
+        ctx.fillStyle = st.color || '#4cc9f0';
+        ctx.fill();
+        // name tag
+        const name = st.name || 'anon';
+        ctx.font = '12px system-ui';
+        const label = ` ${name}`;
+        const w = ctx.measureText(label).width + 14;
+        const h = 20;
+        ctx.fillStyle = 'rgba(0,0,0,.6)';
+        ctx.fillRect(p.x + 8, p.y - h/2, w, h);
+        ctx.fillStyle = '#d7e1ee';
+        ctx.fillText(label, p.x + 12, p.y + 6 - h/2);
+      }
+    }
+
+    function roundRect(ctx, x, y, w, h, r){
+      const rr = Math.min(r, w/2, h/2);
+      ctx.beginPath();
+      ctx.moveTo(x+rr, y);
+      ctx.arcTo(x+w, y, x+w, y+h, rr);
+      ctx.arcTo(x+w, y+h, x, y+h, rr);
+      ctx.arcTo(x, y+h, x, y, rr);
+      ctx.arcTo(x, y, x+w, y, rr);
+      ctx.closePath();
+    }
+
+    // --- Interaction ---
+    let drag = null; // {shape, dx, dy, dup:boolean}
+    let hoveredId = null;
+
+    canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'Space') { spaceDown = true; }
+      if ((e.key === 'Delete' || e.key === 'Backspace') && drag && drag.shape){
+        // delete selected shape
+        const idx = shapesToArray().findIndex(s => s === drag.shape);
+        if (idx >= 0) yShapes.delete(idx, 1);
+        drag = null;
+        draw();
+      }
+    });
+    window.addEventListener('keyup', (e) => {
+      if (e.code === 'Space') { spaceDown = false; isPanning = false; }
+    });
+
+    canvas.addEventListener('pointerdown', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const sx = e.clientX - rect.left;
+      const sy = e.clientY - rect.top;
+      const wpos = screenToWorld(sx, sy);
+      const isRight = e.button === 2 || e.button === 1;
+      // pan
+      if (spaceDown || isRight){
+        isPanning = true;
+        panStart = {x: sx, y: sy};
+        originStart = {...origin};
+        canvas.setPointerCapture(e.pointerId);
+        return;
+      }
+      // try hit shape
+      const target = shapeAt(wpos.x, wpos.y);
+      if (target){
+        const dx = wpos.x - target.get('x');
+        const dy = wpos.y - target.get('y');
+        drag = {shape: target, dx, dy, dup: e.altKey};
+        if (drag.dup){
+          // duplicate on drag start
+          const clone = new Y.Map();
+          for (const [k,v] of target.entries()){
+            clone.set(k, v);
+          }
+          clone.set('id', crypto.randomUUID());
+          yShapes.push([clone]);
+          drag.shape = clone;
+        }
+        canvas.setPointerCapture(e.pointerId);
+        draw();
+        return;
+      }
+      // else: create a rect by default
+      const rectShape = createShapeRect({x: wpos.x - 40, y: wpos.y - 30});
+      yShapes.push([rectShape]);
+      draw();
+    });
+
+    canvas.addEventListener('pointermove', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const sx = e.clientX - rect.left;
+      const sy = e.clientY - rect.top;
+      const wpos = screenToWorld(sx, sy);
+
+      // update presence cursor
+      if (provider){
+        const cur = provider.awareness.getLocalState() || {};
+        provider.awareness.setLocalState({
+          ...cur, cursor: {x: wpos.x, y: wpos.y},
+          name: nameInput.value || 'anon',
+          color: colorInput.value
+        });
+      }
+
+      if (isPanning){
+        origin.x = originStart.x + (sx - panStart.x);
+        origin.y = originStart.y + (sy - panStart.y);
+        draw();
+        return;
+      }
+      if (drag && drag.shape){
+        drag.shape.set('x', wpos.x - drag.dx);
+        drag.shape.set('y', wpos.y - drag.dy);
+        draw();
+        return;
+      }
+      // hover
+      const target = shapeAt(wpos.x, wpos.y);
+      hoveredId = target ? target.get('id') : null;
+      canvas.style.cursor = target ? 'grab' : (spaceDown ? 'grabbing' : 'default');
+    });
+
+    canvas.addEventListener('pointerup', (e) => {
+      isPanning = false;
+      if (drag){
+        drag = null;
+      }
+      canvas.releasePointerCapture(e.pointerId);
+      draw();
+    });
+
+    canvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      const sx = e.clientX - rect.left;
+      const sy = e.clientY - rect.top;
+      const before = screenToWorld(sx, sy);
+      const factor = Math.exp(-e.deltaY * 0.0015);
+      const newScale = Math.min(4, Math.max(0.2, scale * factor));
+      // zoom around cursor
+      scale = newScale;
+      const after = screenToWorld(sx, sy);
+      origin.x += (after.x - before.x) * scale;
+      origin.y += (after.y - before.y) * scale;
+      draw();
+    }, {passive:false});
+
+    // --- Toolbar actions ---
+    btnNewRoom.addEventListener('click', () => {
+      const r = randomRoom();
+      roomInput.value = r;
+      setHash(r);
+      connect(r);
+    });
+    btnCopyLink.addEventListener('click', async () => {
+      const url = location.origin + location.pathname + '#' + (roomInput.value || roomFromHash() || '');
+      await navigator.clipboard.writeText(url);
+      btnCopyLink.textContent = 'Copied!';
+      setTimeout(()=> btnCopyLink.textContent = 'Copy link', 1200);
+    });
+    btnAddRect.addEventListener('click', () => {
+      const c = screenToWorld(canvas.width/2, canvas.height/2);
+      yShapes.push([createShapeRect({x:c.x-80,y:c.y-50})]);
+    });
+    btnAddSticky.addEventListener('click', () => {
+      const c = screenToWorld(canvas.width/2, canvas.height/2);
+      yShapes.push([createSticky({x:c.x-80,y:c.y-60})]);
+    });
+    btnClear.addEventListener('click', () => {
+      if (!yShapes) return;
+      if (confirm('Clear the board for everyone in this room?')){
+        yShapes.delete(0, yShapes.length);
+      }
+    });
+
+    roomInput.addEventListener('change', () => {
+      const r = (roomInput.value || '').trim();
+      if (!r) return;
+      setHash(r);
+      connect(r);
+    });
+
+    nameInput.addEventListener('change', () => {
+      localStorage.setItem('collab_name', nameInput.value);
+      if (provider){
+        const cur = provider.awareness.getLocalState() || {};
+        provider.awareness.setLocalState({ ...cur, name: nameInput.value || 'anon' });
+      }
+    });
+    colorInput.addEventListener('change', () => {
+      localStorage.setItem('collab_color', colorInput.value);
+      if (provider){
+        const cur = provider.awareness.getLocalState() || {};
+        provider.awareness.setLocalState({ ...cur, color: colorInput.value });
+      }
+    });
+
+    // --- Boot ---
+    function boot(){
+      resize();
+      let room = roomFromHash() || randomRoom();
+      roomInput.value = room;
+      setHash(room);
+      connect(room);
+      // Center origin a bit
+      origin.x = canvas.width/2;
+      origin.y = canvas.height/2;
+      draw();
+    }
+    boot();
+
+    window.addEventListener('hashchange', () => {
+      const r = roomFromHash();
+      if (r && r !== roomInput.value){
+        roomInput.value = r;
+        connect(r);
+      }
+    });
+  </script>
 </body>
 </html>
