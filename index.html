@@ -1,633 +1,110 @@
+
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Collab Canvas — Yjs Prototype (Patched)</title>
-  <!-- Inline favicon to avoid 404 -->
-  <link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="%230b0d10"/><rect x="20" y="38" width="60" height="24" rx="6" fill="%236ba8ff"/></svg>' />
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>BlankSpace - Mood Board</title>
   <style>
-    :root{
-      --bg:#0b0d10;
-      --panel:#11161c;
-      --text:#d7e1ee;
-      --muted:#7f8b9e;
-      --accent:#6ba8ff;
-      --danger:#ff6b6b;
-      --grid:#1a2330;
-      --grid-bold:#1f2a3a;
-      --shadow: 0 8px 24px rgba(0,0,0,.35);
+    /* Basic styling for modal and button */
+    #shareModal {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 80%;
+      max-width: 600px;
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 20px;
+      border-radius: 8px;
+      display: none;
+      z-index: 1000;
     }
-    html,body{height:100%;}
-    body{
-      margin:0;
-      background:var(--bg);
-      color:var(--text);
-      font:14px/1.4 system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans", Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
-      overflow:hidden;
-      user-select:none;
+    #shareLink {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      background-color: #333;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      text-align: center;
     }
-    #topbar{
-      position:fixed;
-      inset:12px 12px auto 12px;
-      display:flex;
-      gap:8px;
-      align-items:center;
-      background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
-      padding:10px 12px;
-      border-radius:14px;
-      box-shadow:var(--shadow);
-      border:1px solid rgba(255,255,255,.08);
-      backdrop-filter: blur(6px);
-      z-index:10;
+    #shareButton {
+      padding: 10px 20px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
     }
-    #topbar input[type="text"]{
-      background:#0f141b;
-      color:var(--text);
-      border:1px solid rgba(255,255,255,.08);
-      padding:8px 10px;
-      border-radius:10px;
-      width:180px;
-      outline:none;
+    #shareButton:hover {
+      background-color: #45a049;
     }
-    #topbar input[type="color"]{
-      width:36px;height:34px;border:none;background:transparent;padding:0;cursor:pointer;
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: none;
+      z-index: 999;
     }
-    #topbar button{
-      background:#151c26;
-      color:var(--text);
-      border:1px solid rgba(255,255,255,.10);
-      padding:8px 12px;
-      border-radius:10px;
-      cursor:pointer;
-    }
-    #topbar button.primary{ border-color:rgba(107,168,255,.5); box-shadow: inset 0 0 0 1px rgba(107,168,255,.35); }
-    #topbar button:hover{ filter:brightness(1.15); }
-    #canvas{position:fixed; inset:0;}
-    #hud{
-      position:fixed;
-      right:12px;
-      bottom:12px;
-      background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
-      border:1px solid rgba(255,255,255,.08);
-      border-radius:12px;
-      padding:8px 12px;
-      box-shadow:var(--shadow);
-      display:flex; gap:10px; align-items:center;
-    }
-    .chip{padding:6px 10px;border-radius:999px;background:#131a22;border:1px solid rgba(255,255,255,.1);color:var(--muted);}
-    #help{
-      position:fixed; left:12px; bottom:12px; color:var(--muted); opacity:.9; background:rgba(0,0,0,.25);
-      padding:8px 10px; border-radius:10px; border:1px solid rgba(255,255,255,.07);
-    }
-    a.link{color:var(--accent); text-decoration:none;}
-    a.link:hover{text-decoration:underline;}
   </style>
 </head>
 <body>
-  <div id="topbar">
-    <span style="opacity:.8">Room</span>
-    <input id="room" type="text" placeholder="room-id" />
-    <button id="newRoom">New</button>
-    <button id="copyLink">Copy link</button>
-    <span style="opacity:.8">Name</span>
-    <input id="name" type="text" placeholder="your name" />
-    <input id="color" type="color" />
-    <button id="addRect">Add Rect</button>
-    <button id="addSticky">Add Sticky</button>
-    <button id="clear" style="color:#ffd2d2;border-color:#000">Clear</button>
-    <span id="status" class="chip">connecting…</span>
-    <span id="online" class="chip">0 online</span>
+  <button id="shareButton">Share Mood Board</button>
+
+  <!-- Modal for Share Link -->
+  <div class="modal-overlay" id="modalOverlay"></div>
+  <div id="shareModal">
+    <h2>Share Your Mood Board</h2>
+    <input type="text" id="shareLink" readonly placeholder="Generated link will appear here...">
+    <button id="copyLinkButton">Copy Link</button>
   </div>
 
-  <canvas id="canvas"></canvas>
+  <script>
+    // Example of mood board state (this would be dynamically captured)
+    const boardState = {
+      nodes: [{ id: 1, x: 100, y: 100, width: 200, height: 200, content: 'Node 1' }],
+      zoom: 1.0,
+      pan: { x: 0, y: 0 }
+    };
 
-  <div id="hud">
-    <span id="zoom" class="chip">100%</span>
-    <span id="pos" class="chip">0,0</span>
-  </div>
-
-  <div id="help">
-    <div><strong>Pan:</strong> hold <kbd>Space</kbd> + drag / right-drag • <strong>Zoom:</strong> mouse wheel</div>
-    <div><strong>Drag shape:</strong> left-drag • <strong>Duplicate:</strong> <kbd>Alt</kbd> + drag • <strong>Delete:</strong> <kbd>Del</kbd></div>
-    <div><strong>Presence:</strong> colored cursors show live collaborators. Viewport is independent.</div>
-  </div>
-
-  <script type="module">
-    // --- Imports (ESM over CDN) ---
-    // Pin yjs once, and make y-websocket/webrtc treat yjs as external to prevent double-import:
-    import * as Y from "https://esm.sh/yjs@13.6.14";
-    import { WebsocketProvider } from "https://esm.sh/y-websocket@1.5.4?external=yjs";
-    // Optional fallback (peer-to-peer). Will be dynamically used only if websocket fails:
-    import { WebrtcProvider } from "https://esm.sh/y-webrtc@10.6.4?external=yjs";
-
-    // --- DOM refs ---
-    const canvas = document.getElementById('canvas');
-    const ctx = canvas.getContext('2d');
-    const roomInput = document.getElementById('room');
-    const nameInput = document.getElementById('name');
-    const colorInput = document.getElementById('color');
-    const statusEl = document.getElementById('status');
-    const onlineEl = document.getElementById('online');
-    const zoomEl = document.getElementById('zoom');
-    const posEl = document.getElementById('pos');
-    const btnNewRoom = document.getElementById('newRoom');
-    const btnCopyLink = document.getElementById('copyLink');
-    const btnAddRect = document.getElementById('addRect');
-    const btnAddSticky = document.getElementById('addSticky');
-    const btnClear = document.getElementById('clear');
-
-    // --- Viewport (pan/zoom) ---
-    let scale = 1;
-    let origin = {x: 0, y: 0};
-    let isPanning = false;
-    let panStart = {x: 0, y: 0};
-    let originStart = {x: 0, y: 0};
-    let spaceDown = false;
-
-    function resize(){
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-      draw();
-    }
-    window.addEventListener('resize', resize);
-
-    // --- Yjs state ---
-    let ydoc = null;
-    let provider = null; // either WebsocketProvider or WebrtcProvider
-    let providerType = null;
-    let yShapes = null; // Y.Array<Y.Map>
-    const wsServers = [
-      "wss://demos.yjs.dev"
-      // Add your own y-websocket endpoint(s) here for production
-    ];
-
-    // --- Client identity ---
-    function randColor() {
-      const hue = Math.floor(Math.random()*360);
-      return `hsl(${hue}, 80%, 60%)`;
-    }
-    const defaultName = localStorage.getItem('collab_name') || '';
-    const defaultColor = localStorage.getItem('collab_color') || '#4cc9f0';
-    nameInput.value = defaultName;
-    colorInput.value = defaultColor;
-
-    // --- Shapes helpers ---
-    function createShapeRect({x, y, w=160, h=100, fill, text=""}){
-      const m = new Y.Map();
-      m.set('id', crypto.randomUUID());
-      m.set('type', 'rect');
-      m.set('x', x);
-      m.set('y', y);
-      m.set('w', w);
-      m.set('h', h);
-      m.set('fill', fill || colorInput.value);
-      m.set('text', text);
-      m.set('createdBy', nameInput.value || 'anon');
-      return m;
-    }
-    function createSticky({x,y,w=160,h=120, fill, text="Sticky note"}){
-      const m = new Y.Map();
-      m.set('id', crypto.randomUUID());
-      m.set('type', 'sticky');
-      m.set('x', x);
-      m.set('y', y);
-      m.set('w', w);
-      m.set('h', h);
-      m.set('fill', fill || '#ffd66b');
-      m.set('text', text);
-      m.set('createdBy', nameInput.value || 'anon');
-      return m;
+    // Function to serialize the state and generate the URL
+    function serializeState(state) {
+      return btoa(JSON.stringify(state)); // Base64 encode the serialized state
     }
 
-    function roomFromHash(){
-      const h = (location.hash || '').replace(/^#/, '');
-      return h && h.length ? h : null;
-    }
-    function setHash(room){
-      history.replaceState(null, '', '#'+room);
-    }
-    function randomRoom(){
-      return Math.random().toString(36).slice(2, 8);
+    // Function to show the share modal
+    function showShareModal() {
+      const serializedState = serializeState(boardState);
+      const link = window.location.href.split('?')[0] + '?state=' + serializedState;
+      document.getElementById('shareLink').value = link;
+      document.getElementById('modalOverlay').style.display = 'block';
+      document.getElementById('shareModal').style.display = 'block';
     }
 
-    // --- Connect to a room ---
-    let connected = false;
-    async function connect(roomId){
-      disconnect(); // ensure clean
-      ydoc = new Y.Doc();
-      yShapes = ydoc.getArray('shapes');
-
-      // Observe shapes
-      yShapes.observeDeep(() => { draw(); });
-
-      // Try websocket first, then fall back to WebRTC
-      await tryWebsocket(roomId);
-      if (!connected){
-        await tryWebrtc(roomId);
-      }
+    // Function to copy the link to the clipboard
+    function copyLink() {
+      const shareLink = document.getElementById('shareLink');
+      shareLink.select();
+      document.execCommand('copy');
+      alert('Link copied to clipboard!');
     }
 
-    async function tryWebsocket(roomId){
-      let index = 0;
-      async function attempt(){
-        if (index >= wsServers.length) return;
-        const url = wsServers[index];
-        provider = new WebsocketProvider(url, `room-${roomId}`, ydoc, { connect: true });
-        providerType = 'websocket';
-        bindProviderCommon(provider);
-        setStatus('connecting (WS)…');
-        // Simple timeout fallback
-        const ok = await waitForConnected(4000);
-        if (!ok){
-          provider.destroy();
-          index++;
-          await attempt();
-        }
-      }
-      await attempt();
-    }
+    // Event listener for the share button
+    document.getElementById('shareButton').addEventListener('click', showShareModal);
 
-    async function tryWebrtc(roomId){
-      try{
-        provider = new WebrtcProvider(`room-${roomId}`, ydoc, {
-          // Allow NAT traversal; this uses public Google STUN by default
-          // You can add TURN for reliability if needed.
-          signaling: ["wss://signaling.yjs.dev"] // public signaling
-        });
-        providerType = 'webrtc';
-        bindProviderCommon(provider);
-        setStatus('connecting (WebRTC)…');
-        await waitForConnected(4000); // settle
-      }catch(err){
-        console.error('WebRTC init failed', err);
-      }
-    }
+    // Event listener for the copy link button
+    document.getElementById('copyLinkButton').addEventListener('click', copyLink);
 
-    function bindProviderCommon(p){
-      connected = false;
-      // Status (WS has 'status' events; WebRTC does not, so we infer via peers)
-      if (p.on && p.on.bind){
-        p.on('status', (e) => {
-          if (e.status === 'connected'){ connected = true; setStatus('connected'); }
-          else setStatus('disconnected');
-        });
-      }
-      // Awareness
-      p.awareness.on('change', () => { updatePresence(); draw(); });
-      const current = p.awareness.getLocalState() || {};
-      p.awareness.setLocalState({
-        ...current,
-        name: nameInput.value || 'anon',
-        color: colorInput.value,
-      });
-    }
-
-    function waitForConnected(ms){
-      return new Promise((resolve) => {
-        const start = performance.now();
-        const tick = () => {
-          if (connected) return resolve(true);
-          if (performance.now() - start > ms) return resolve(false);
-          requestAnimationFrame(tick);
-        };
-        tick();
-      });
-    }
-
-    function disconnect(){
-      connected = false;
-      if (provider){
-        try{ provider.destroy?.(); }catch(_){}
-        provider = null;
-      }
-      if (ydoc){
-        try{ ydoc.destroy(); }catch(_){}
-        ydoc = null;
-      }
-    }
-
-    function setStatus(text){
-      statusEl.textContent = text + (providerType ? ` • ${providerType}` : '');
-      if (text.includes('connected')) statusEl.style.color = '#a7ffb4';
-      else if (text.includes('connecting')) statusEl.style.color = '#fff';
-      else statusEl.style.color = '#ffd2d2';
-    }
-
-    function updatePresence(){
-      if (!provider) return;
-      const n = provider.awareness.getStates().size;
-      onlineEl.textContent = n + (n === 1 ? ' online' : ' online');
-    }
-
-    // --- Hit-testing shapes ---
-    function shapesToArray(){ return yShapes ? yShapes.toArray() : []; }
-    function shapeAt(px, py){
-      const arr = shapesToArray();
-      for (let i = arr.length - 1; i >= 0; i--){
-        const s = arr[i];
-        const x = s.get('x'), y = s.get('y'), w = s.get('w'), h = s.get('h');
-        if (px >= x && px <= x + w && py >= y && py <= y + h) return s;
-      }
-      return null;
-    }
-
-    // --- Coordinate transforms ---
-    function screenToWorld(sx, sy){
-      return { x: (sx - origin.x) / scale, y: (sy - origin.y) / scale };
-    }
-    function worldToScreen(wx, wy){
-      return { x: wx*scale + origin.x, y: wy*scale + origin.y };
-    }
-
-    // --- Draw ---
-    function draw(){
-      if (!ctx) return;
-      ctx.clearRect(0,0,canvas.width, canvas.height);
-      drawGrid();
-      drawShapes();
-      drawCursors();
-      zoomEl.textContent = Math.round(scale*100) + '%';
-      const centerWorld = screenToWorld(canvas.width/2, canvas.height/2);
-      posEl.textContent = `${centerWorld.x.toFixed(0)},${centerWorld.y.toFixed(0)}`;
-    }
-
-    function drawGrid(){
-      const spacing = 40 * scale;
-      const startX = origin.x % spacing;
-      const startY = origin.y % spacing;
-      // small grid
-      ctx.strokeStyle = '#1a2330';
-      ctx.lineWidth = 1;
-      for (let x = startX; x < canvas.width; x += spacing){
-        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
-      }
-      for (let y = startY; y < canvas.height; y += spacing){
-        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
-      }
-      // bold grid
-      const bigSpacing = spacing * 5;
-      const startBX = origin.x % bigSpacing;
-      const startBY = origin.y % bigSpacing;
-      ctx.strokeStyle = '#1f2a3a';
-      ctx.lineWidth = 1.5;
-      for (let x = startBX; x < canvas.width; x += bigSpacing){
-        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
-      }
-      for (let y = startBY; y < canvas.height; y += bigSpacing){
-        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
-      }
-    }
-
-    function drawShapes(){
-      const arr = shapesToArray();
-      for (const s of arr){
-        const type = s.get('type');
-        const x = s.get('x'), y = s.get('y'), w = s.get('w'), h = s.get('h');
-        const {x:sx, y:sy} = worldToScreen(x, y);
-        const sw = w * scale, sh = h * scale;
-        if (type === 'rect'){
-          ctx.fillStyle = s.get('fill') || '#6ba8ff';
-          ctx.strokeStyle = 'rgba(0,0,0,.35)';
-          ctx.lineWidth = 1.5;
-          roundRect(ctx, sx, sy, sw, sh, 10*scale);
-          ctx.fill();
-          ctx.stroke();
-        } else if (type === 'sticky'){
-          ctx.fillStyle = s.get('fill') || '#ffd66b';
-          ctx.strokeStyle = 'rgba(0,0,0,.25)';
-          ctx.lineWidth = 1.5;
-          roundRect(ctx, sx, sy, sw, sh, 12*scale);
-          ctx.fill();
-          ctx.stroke();
-          // sticky header
-          ctx.fillStyle = 'rgba(0,0,0,.08)';
-          ctx.fillRect(sx, sy, sw, Math.min(24*scale, sh));
-        }
-        // text label
-        const label = s.get('text') || '';
-        if (label){
-          ctx.fillStyle = '#0b0d10';
-          ctx.font = `${Math.max(12*scale, 10)}px system-ui`;
-          ctx.textBaseline = 'top';
-          ctx.fillText(label, sx + 10*scale, sy + 8*scale, Math.max(sw - 20*scale, 20));
-        }
-      }
-    }
-
-    function drawCursors(){
-      if (!provider) return;
-      const states = provider.awareness.getStates();
-      for (const [id, st] of states){
-        if (!st || !st.cursor) continue;
-        const {x, y} = st.cursor;
-        const p = worldToScreen(x, y);
-        // cursor dot
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, Math.max(4, 4*scale), 0, Math.PI*2);
-        ctx.fillStyle = st.color || '#4cc9f0';
-        ctx.fill();
-        // name tag
-        const name = st.name || 'anon';
-        ctx.font = '12px system-ui';
-        const label = ` ${name}`;
-        const w = ctx.measureText(label).width + 14;
-        const h = 20;
-        ctx.fillStyle = 'rgba(0,0,0,.6)';
-        ctx.fillRect(p.x + 8, p.y - h/2, w, h);
-        ctx.fillStyle = '#d7e1ee';
-        ctx.fillText(label, p.x + 12, p.y + 6 - h/2);
-      }
-    }
-
-    function roundRect(ctx, x, y, w, h, r){
-      const rr = Math.min(r, w/2, h/2);
-      ctx.beginPath();
-      ctx.moveTo(x+rr, y);
-      ctx.arcTo(x+w, y, x+w, y+h, rr);
-      ctx.arcTo(x+w, y+h, x, y+h, rr);
-      ctx.arcTo(x, y+h, x, y, rr);
-      ctx.arcTo(x, y, x+w, y, rr);
-      ctx.closePath();
-    }
-
-    // --- Interaction ---
-    let drag = null; // {shape, dx, dy, dup:boolean}
-
-    canvas.addEventListener('contextmenu', (e) => e.preventDefault());
-
-    window.addEventListener('keydown', (e) => {
-      if (e.code === 'Space') { e.preventDefault(); spaceDown = true; }
-      if ((e.key === 'Delete' || e.key === 'Backspace') && drag && drag.shape){
-        const idx = shapesToArray().findIndex(s => s === drag.shape);
-        if (idx >= 0) yShapes.delete(idx, 1);
-        drag = null;
-        draw();
-      }
-    });
-    window.addEventListener('keyup', (e) => {
-      if (e.code === 'Space') { spaceDown = false; isPanning = false; }
-    });
-
-    canvas.addEventListener('pointerdown', (e) => {
-      const rect = canvas.getBoundingClientRect();
-      const sx = e.clientX - rect.left;
-      const sy = e.clientY - rect.top;
-      const wpos = screenToWorld(sx, sy);
-      const isRight = e.button === 2 || e.button === 1;
-      // pan
-      if (spaceDown || isRight){
-        isPanning = true;
-        panStart = {x: sx, y: sy};
-        originStart = {...origin};
-        canvas.setPointerCapture(e.pointerId);
-        return;
-      }
-      // try hit shape
-      const target = shapeAt(wpos.x, wpos.y);
-      if (target){
-        const dx = wpos.x - target.get('x');
-        const dy = wpos.y - target.get('y');
-        drag = {shape: target, dx, dy, dup: e.altKey};
-        if (drag.dup){
-          const clone = new Y.Map();
-          for (const [k,v] of target.entries()){ clone.set(k, v); }
-          clone.set('id', crypto.randomUUID());
-          yShapes.push([clone]);
-          drag.shape = clone;
-        }
-        canvas.setPointerCapture(e.pointerId);
-        draw();
-        return;
-      }
-      // else: create a rect by default
-      const rectShape = createShapeRect({x: wpos.x - 40, y: wpos.y - 30});
-      yShapes.push([rectShape]);
-      draw();
-    });
-
-    canvas.addEventListener('pointermove', (e) => {
-      const rect = canvas.getBoundingClientRect();
-      const sx = e.clientX - rect.left;
-      const sy = e.clientY - rect.top;
-      const wpos = screenToWorld(sx, sy);
-
-      // update presence cursor
-      if (provider){
-        const cur = provider.awareness.getLocalState() || {};
-        provider.awareness.setLocalState({
-          ...cur, cursor: {x: wpos.x, y: wpos.y},
-          name: nameInput.value || 'anon',
-          color: colorInput.value
-        });
-      }
-
-      if (isPanning){
-        origin.x = originStart.x + (sx - panStart.x);
-        origin.y = originStart.y + (sy - panStart.y);
-        draw();
-        return;
-      }
-      if (drag && drag.shape){
-        drag.shape.set('x', wpos.x - drag.dx);
-        drag.shape.set('y', wpos.y - drag.dy);
-        draw();
-        return;
-      }
-      canvas.style.cursor = (spaceDown ? 'grabbing' : 'default');
-    });
-
-    canvas.addEventListener('pointerup', (e) => {
-      isPanning = false;
-      if (drag){ drag = null; }
-      canvas.releasePointerCapture(e.pointerId);
-      draw();
-    });
-
-    canvas.addEventListener('wheel', (e) => {
-      e.preventDefault();
-      const rect = canvas.getBoundingClientRect();
-      const sx = e.clientX - rect.left;
-      const sy = e.clientY - rect.top;
-      const before = screenToWorld(sx, sy);
-      const factor = Math.exp(-e.deltaY * 0.0015);
-      const newScale = Math.min(4, Math.max(0.2, scale * factor));
-      scale = newScale;
-      const after = screenToWorld(sx, sy);
-      origin.x += (after.x - before.x) * scale;
-      origin.y += (after.y - before.y) * scale;
-      draw();
-    }, {passive:false});
-
-    // --- Toolbar actions ---
-    btnNewRoom.addEventListener('click', () => {
-      const r = randomRoom();
-      roomInput.value = r;
-      setHash(r);
-      connect(r);
-    });
-    btnCopyLink.addEventListener('click', async () => {
-      const url = location.origin + location.pathname + '#' + (roomInput.value || roomFromHash() || '');
-      await navigator.clipboard.writeText(url);
-      btnCopyLink.textContent = 'Copied!';
-      setTimeout(()=> btnCopyLink.textContent = 'Copy link', 1200);
-    });
-    btnAddRect.addEventListener('click', () => {
-      const c = screenToWorld(canvas.width/2, canvas.height/2);
-      yShapes.push([createShapeRect({x:c.x-80,y:c.y-50})]);
-    });
-    btnAddSticky.addEventListener('click', () => {
-      const c = screenToWorld(canvas.width/2, canvas.height/2);
-      yShapes.push([createSticky({x:c.x-80,y:c.y-60})]);
-    });
-    btnClear.addEventListener('click', () => {
-      if (!yShapes) return;
-      if (confirm('Clear the board for everyone in this room?')){
-        yShapes.delete(0, yShapes.length);
-      }
-    });
-
-    roomInput.addEventListener('change', () => {
-      const r = (roomInput.value || '').trim();
-      if (!r) return;
-      setHash(r);
-      connect(r);
-    });
-
-    nameInput.addEventListener('change', () => {
-      localStorage.setItem('collab_name', nameInput.value);
-      if (provider){
-        const cur = provider.awareness.getLocalState() || {};
-        provider.awareness.setLocalState({ ...cur, name: nameInput.value || 'anon' });
-      }
-    });
-    colorInput.addEventListener('change', () => {
-      localStorage.setItem('collab_color', colorInput.value);
-      if (provider){
-        const cur = provider.awareness.getLocalState() || {};
-        provider.awareness.setLocalState({ ...cur, color: colorInput.value });
-      }
-    });
-
-    // --- Boot ---
-    function boot(){
-      resize();
-      let room = roomFromHash() || randomRoom();
-      roomInput.value = room;
-      setHash(room);
-      connect(room);
-      origin.x = canvas.width/2;
-      origin.y = canvas.height/2;
-      draw();
-    }
-    boot();
-
-    window.addEventListener('hashchange', () => {
-      const r = roomFromHash();
-      if (r && r !== roomInput.value){
-        roomInput.value = r;
-        connect(r);
-      }
+    // Close modal when overlay is clicked
+    document.getElementById('modalOverlay').addEventListener('click', () => {
+      document.getElementById('modalOverlay').style.display = 'none';
+      document.getElementById('shareModal').style.display = 'none';
     });
   </script>
 </body>
